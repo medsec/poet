@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-W -O3 -msse4.2 -mpclmul -maes
+CFLAGS=-W -O3 -msse4.2 -maes
 LIBS =
 
 all: test-poet test-encrypt poet-test-vectors

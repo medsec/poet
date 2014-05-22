@@ -1,7 +1,7 @@
 #ifdef DEBUG
 #include<stdio.h>
 #endif
-
+#include <byteswap.h>
 #include <string.h>
 
 #include "poet.h"
@@ -60,61 +60,70 @@ inline void xor_block(uint8_t *c, const uint8_t  *a, const uint8_t  *b)
 /***************************************************************************/
 
 
+
 void process_header(struct poet_ctx *ctx, const uint8_t  *header, uint64_t header_len )
 {
-  block mask;
-  block factor;
+  uint64_t h[2];
+  unsigned char *mask = (unsigned char *) h;
   block in;
   block out;
-  block product;
   uint64_t offset=0;
 
   ctx->mlen=0;
-  memset(factor,0,BLOCKLEN);
-  memset(product,0,BLOCKLEN);
-  memset(mask,0,BLOCKLEN);
-  memset(ctx->tau,0,BLOCKLEN);
+  memcpy(h, ctx->l, BLOCKLEN);
+  memset(ctx->tau, 0, BLOCKLEN);
 
-  product[0] = 0x80; // since 1000 0000 = 1
-  factor[0]  = 0x40; // since 0100 0000 = 2
 
   while(header_len > BLOCKLEN)
     {
-      gf_mul(mask, product, ctx->l);
+
+      if(offset)
+	{
+	  h[0] = bswap_64(h[0]);  h[1] = bswap_64(h[1]);
+	  GF128_double(h);
+	  h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+	}
       xor_block(in,header+offset,mask);
+
       AESNI_encrypt(in,out,ctx->aes_enc);
       xor_block(ctx->tau,out,ctx->tau);
 
       offset += BLOCKLEN;
       header_len -= BLOCKLEN;
-
-      gf_mul(product,product,factor);
     }
 
+  h[0] = bswap_64(h[0]);  h[1] = bswap_64(h[1]);
+  GF128_double(h);
+  h[0] = bswap_64(h[0]);  h[1] = bswap_64(h[1]);
+
   /* LASTBLOCK */
-  if(header_len < 16)
+   if(header_len < 16)
     {
-      factor[0]=0xA0; // 1010 0000 = 5 in Big Endian
       memset(in,0,BLOCKLEN);
       memcpy(in,header+offset,header_len);
       in[header_len]=0x80;
+
+      h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+      GF128_quintuple(h);
+      h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+
     }
-  else
-    {
-      factor[0]=0xC0; // 1100 0000 = 3 in Big Endian
-      memcpy(in,header+offset,BLOCKLEN);
-    }
+   else
+     {
+       memcpy(in,header+offset,BLOCKLEN);
+       h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+       GF128_triple(h);
+       h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+     }
 
-  gf_mul(product,product,factor);
-  gf_mul(mask,product,ctx->l);
-  xor_block(in,mask,in);
+   xor_block(in,mask,in);
 
-  xor_block(in,in,ctx->tau);
-  AESNI_encrypt(in ,ctx->tau, ctx->aes_enc);
-
-  memcpy(ctx->x, ctx->tau, BLOCKLEN);
-  memcpy(ctx->y, ctx->tau, BLOCKLEN);
+   xor_block(in,in,ctx->tau);
+   AESNI_encrypt(in ,ctx->tau, ctx->aes_enc);
+   memcpy(ctx->x, ctx->tau, BLOCKLEN);
+   memcpy(ctx->y, ctx->tau, BLOCKLEN);
 }
+
 
 
 
