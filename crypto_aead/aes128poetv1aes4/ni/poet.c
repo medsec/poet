@@ -1,11 +1,27 @@
 #ifdef DEBUG
-#include<stdio.h>
+   #include<stdio.h>
 #endif
 #include <byteswap.h>
 #include <string.h>
 
+#ifdef __linux__
+   #include <endian.h>
+#elif __FreeBSD__ || __NetBSD__ ||  __OpenBSD__
+  #include <sys/endian.h>
+#elif __APPLE__
+  #include <machine/endian.h>
+#endif
+
 #include "poet.h"
 #include "gf_mul.h"
+
+
+#if BYTE_ORDER == BIG_ENDIAN
+  #define TO_BIG_ENDIAN_64(n) (n)
+#else
+  #define TO_BIG_ENDIAN_64(n) bswap_64(n)
+#endif
+
 
 
 #define TOP_HASH     AESNI_encrypt4(ctx->x, ctx->x, ctx->aes_lt)
@@ -79,9 +95,9 @@ void process_header(struct poet_ctx *ctx, const uint8_t  *header, uint64_t heade
 
       if(offset)
 	{
-	  h[0] = bswap_64(h[0]);  h[1] = bswap_64(h[1]);
+	  h[0] = TO_BIG_ENDIAN_64(h[0]);  h[1] = TO_BIG_ENDIAN_64(h[1]);
 	  GF128_double(h);
-	  h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+	  h[0] = TO_BIG_ENDIAN_64(h[0]); h[1] = TO_BIG_ENDIAN_64(h[1]);
 	}
       xor_block(in,header+offset,mask);
 
@@ -92,9 +108,9 @@ void process_header(struct poet_ctx *ctx, const uint8_t  *header, uint64_t heade
       header_len -= BLOCKLEN;
     }
 
-  h[0] = bswap_64(h[0]);  h[1] = bswap_64(h[1]);
+  h[0] = TO_BIG_ENDIAN_64(h[0]);  h[1] = TO_BIG_ENDIAN_64(h[1]);
   GF128_double(h);
-  h[0] = bswap_64(h[0]);  h[1] = bswap_64(h[1]);
+  h[0] = TO_BIG_ENDIAN_64(h[0]);  h[1] = TO_BIG_ENDIAN_64(h[1]);
 
   /* LASTBLOCK */
    if(header_len < 16)
@@ -103,17 +119,17 @@ void process_header(struct poet_ctx *ctx, const uint8_t  *header, uint64_t heade
       memcpy(in,header+offset,header_len);
       in[header_len]=0x80;
 
-      h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+      h[0] = TO_BIG_ENDIAN_64(h[0]); h[1] = TO_BIG_ENDIAN_64(h[1]);
       GF128_quintuple(h);
-      h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+      h[0] = TO_BIG_ENDIAN_64(h[0]); h[1] = TO_BIG_ENDIAN_64(h[1]);
 
     }
    else
      {
        memcpy(in,header+offset,BLOCKLEN);
-       h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+       h[0] = TO_BIG_ENDIAN_64(h[0]); h[1] = TO_BIG_ENDIAN_64(h[1]);
        GF128_triple(h);
-       h[0] = bswap_64(h[0]); h[1] = bswap_64(h[1]);
+       h[0] = TO_BIG_ENDIAN_64(h[0]); h[1] = TO_BIG_ENDIAN_64(h[1]);
      }
 
    xor_block(in,mask,in);
