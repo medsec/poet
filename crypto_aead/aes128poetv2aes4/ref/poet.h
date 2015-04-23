@@ -26,7 +26,7 @@ typedef int boolean;
 struct poet_ctx_t {
   AES_KEY aes_enc;   // Expanded encryption key for the AES
   AES_KEY aes_dec;   // Expanded decryption key for the AES
-  AES_KEY aes_axu; // Expanded key for the AXU hash function (top and bottom)
+  AES_KEY aes_axu;   // Expanded key for the AXU hash function (top and bottom)
   block k;           // Block-cipher key
   block l;           // PMAC key
   block k_axu;       // Key for the AXU hash function (top and bottom)

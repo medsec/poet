@@ -1,79 +1,103 @@
 #include <stdio.h>
 #include <string.h>
-
 #include "poet.h"
 
-inline void dump_hex (char *label, uint8_t *c, int len)
+// ---------------------------------------------------------------------
+
+static void print_hex(const char *message, const unsigned char *x, const int len)
 {
-  int i;
+    int i;
+    puts(message);
 
-  printf("%s: \n", label);
+    for (i = 0; i < len; i++)
+    {
+        if ((i != 0) && (i % 16 == 0)) puts("");
+        printf("%02x ", x[i]);
+    }
 
-
-  for (i = 0; i < len; i++) {
-    printf("%02x ", c[i]);
-  }
-
-  puts("\n");
+    printf("     %d (octets)\n\n", len);
 }
 
+// ---------------------------------------------------------------------
 
-
-void dump_context (struct poet_ctx *ctx)
+static void dump_context(struct poet_ctx_t *ctx)
 {
-  dump_hex("Secret  key: ", ctx->k, BLOCKLEN);
-
-  dump_hex("Masking key: ", ctx->tm, BLOCKLEN);
-
-
-  dump_hex("Header  key: ", ctx->l, BLOCKLEN);
-  dump_hex("Hashfun key: ", ctx->lt, BLOCKLEN);
-  dump_hex("Hashfun key: ", ctx->lb, BLOCKLEN);
-  dump_hex("Tau        : ", ctx->tau, BLOCKLEN);
+    print_hex("Cipher key", ctx->k, BLOCKLEN);
+    print_hex("Header key", ctx->l, BLOCKLEN);
+    print_hex("Top hash function key", ctx->lt, BLOCKLEN);
+    print_hex("Bottom hash function key", ctx->lb, BLOCKLEN);
+    print_hex("Final-block key", ctx->tm, BLOCKLEN);
+    print_hex("Tau", ctx->tau, BLOCKLEN);
 }
+
+// ---------------------------------------------------------------------
+
+static int run_test(const unsigned char *k,
+                    const unsigned char *h, 
+                    const unsigned long long hlen,
+                    unsigned char *m, 
+                    unsigned long long mlen)
+{
+    struct poet_ctx_t ctx;
+    unsigned char c[mlen];
+    const unsigned long long clen = mlen;
+    unsigned char t[TAGLEN];
+
+    keysetup(&ctx, k);
+    process_header(&ctx, h, hlen);
+    encrypt_final(&ctx, m, mlen, c, t);
+
+    dump_context(&ctx);
+    puts("Encryption");
+    print_hex("Tag", t, BLOCKLEN);
+    print_hex("Message", m, mlen);
+    print_hex("Ciphertext", c, mlen);
+
+    memset(m, 0x00, mlen);
+
+    keysetup(&ctx, k);
+    process_header(&ctx, h, hlen);
+    int result = decrypt_final(&ctx, c, clen, t, m);
+
+    puts("Encryption");
+    dump_context(&ctx);
+    print_hex("Message", m, mlen);
+
+    return result;
+}
+
+// ---------------------------------------------------------------------
 
 int main()
 {
-  struct poet_ctx ctx;
-  uint8_t key[KEYLEN] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,32};
-  uint8_t header[2*BLOCKLEN+1] =
-    {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
-     0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+    const unsigned long long hlen = 24;
+    unsigned long long mlen = 52;
+    const unsigned char k[BLOCKLEN] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+    };
+    const unsigned char h[24] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+        0xde, 0xad, 0xbe, 0xef, 0xde, 0xaf, 0xba, 0xbe
+    };
+    unsigned char m[52] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+        0xfe, 0xfe, 0xba, 0xbe
+    };
 
-  uint8_t m[2*BLOCKLEN+3] =
-    {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
-     0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,1,2};
+    int result = run_test(k, h, hlen, m, mlen);
 
-  uint8_t c[3*BLOCKLEN];
-  uint8_t t[2*BLOCKLEN];
-  int result;
+    if (result) {
+        puts("Test result:  FAILED");
+    } else {
+        puts("Tests result: SUCCESS");
+    }
 
-  memset(c,0,3*BLOCKLEN);
-  memset(t,0,2*BLOCKLEN);
-
-  keysetup(&ctx, key);
-
-  process_header(&ctx, header, 2*BLOCKLEN+1);
-  encrypt_final(&ctx, m, 2*BLOCKLEN+3, c, t);
-
-  dump_context(&ctx);
-  dump_hex ("Tag: ", t, 2*BLOCKLEN);
-  dump_hex ("Message: ", m, 2*BLOCKLEN+3);
-  dump_hex ("Ciphertext: ", c, 3*BLOCKLEN);
-  dump_hex("Tau        : ", ctx.tau, BLOCKLEN);
-
-  puts("\n----------------------------------------------------------------\n");
-
-  keysetup(&ctx, key);
-  process_header(&ctx, header, 2*BLOCKLEN+1);
-  result = decrypt_final(&ctx, c, 2*BLOCKLEN+3, t, m);
-
-  dump_context(&ctx);
-  dump_hex ("Message: ", m, 2*BLOCKLEN+3);
-  dump_hex("Tau        : ", ctx.tau, BLOCKLEN);
-
-  if(result==0) puts("SUCCESS");
-  else puts("FAIL");
-
-return 0;
+    return 0;
 }

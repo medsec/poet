@@ -75,10 +75,10 @@ static int run_test(const unsigned char *k,
                     const unsigned char *expected_t)
 {
     struct poet_ctx_t ctx;
-    unsigned char c[mlen];
+    unsigned char* c = (unsigned char*)malloc((size_t)mlen);
+    unsigned char* m = (unsigned char*)malloc((size_t)mlen);
     unsigned long long clen = mlen;
     unsigned char t[TAGLEN];
-    unsigned char m[mlen];
 
     keysetup(&ctx, k);
     process_header(&ctx, h, hlen);
@@ -87,6 +87,8 @@ static int run_test(const unsigned char *k,
     if (memcmp(expected_c, c, clen) || memcmp(expected_t, t, TAGLEN)) {
         test_output(&ctx, k, KEYLEN, h, hlen, expected_m, mlen, c, clen, t, TAGLEN);
         puts("Encryption produced incorrect result");
+        free(m);
+        free(c);
         return -1;
     }
 
@@ -98,9 +100,13 @@ static int run_test(const unsigned char *k,
 
     if (memcmp(expected_m, m, mlen)) {
         puts("Decryption produced incorrect result");
+        free(m);
+        free(c);
         return -1;
     }
-
+    
+    free(m);
+    free(c);
     return result;
 }
 

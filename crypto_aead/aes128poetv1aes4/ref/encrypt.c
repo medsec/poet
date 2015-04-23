@@ -6,56 +6,70 @@
 #include "poet.h"
 #include "api.h"
 
+// ---------------------------------------------------------------------
 
-int crypto_aead_encrypt(unsigned char *c,unsigned long long *clen,
-			const unsigned char *m, unsigned long long mlen,
-			const unsigned char *ad,unsigned long long adlen,
-			const unsigned char *nsec,
-			const unsigned char *npub,
-			const unsigned char *k)
+int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen,
+                        const unsigned char *m, unsigned long long mlen,
+                        const unsigned char *ad, unsigned long long adlen,
+                        const unsigned char *nsec,
+                        const unsigned char *npub,
+                        const unsigned char *k)
 {
-  struct poet_ctx ctx;
-  unsigned char *header = malloc((size_t) (adlen+CRYPTO_NPUBBYTES));
-  unsigned char *tag = c+mlen;
+    struct poet_ctx_t ctx;
+    (void)nsec;
 
-  *clen=mlen+CRYPTO_NPUBBYTES;
-  keysetup(&ctx, k);
-  memcpy(header,ad,adlen);
-  memcpy(header+adlen,npub,CRYPTO_NPUBBYTES);
-  process_header(&ctx, header,adlen+CRYPTO_NPUBBYTES);
-  encrypt_final(&ctx, m, mlen, c, tag);
+    if (clen) {
+        *clen = mlen + CRYPTO_ABYTES;
+    }
 
+    keysetup(&ctx, k);
 
-  if(errno) return -1;
-  else return 0;
+    if (npub) {
+        unsigned char header[adlen + CRYPTO_NPUBBYTES];
+        memcpy(header, ad, adlen);
+        memcpy(header + adlen, npub, CRYPTO_NPUBBYTES);
+        process_header(&ctx, header, adlen + CRYPTO_NPUBBYTES);
+    } else {
+        process_header(&ctx, ad, adlen);
+    }
 
+    unsigned char *tag = c + mlen;
+    encrypt_final(&ctx, m, mlen, c, tag);
+    return 0;
 }
 
+// ---------------------------------------------------------------------
 
-int crypto_aead_decrypt(unsigned char *m,unsigned long long *mlen,
-			unsigned char *nsec,
-			const unsigned char *c,unsigned long long clen,
-			const unsigned char *ad,unsigned long long adlen,
-			const unsigned char *npub,
-			const unsigned char *k)
+int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
+                        unsigned char *nsec,
+                        const unsigned char *c, unsigned long long clen,
+                        const unsigned char *ad, unsigned long long adlen,
+                        const unsigned char *npub,
+                        const unsigned char *k)
 {
-  struct poet_ctx ctx;
-  unsigned char *header =  malloc((size_t) (adlen+CRYPTO_NPUBBYTES));
-  unsigned char tag[CRYPTO_NPUBBYTES];
-  int result;
+    struct poet_ctx_t ctx;
+    (void)nsec;
+    
+    if (clen < CRYPTO_ABYTES) {
+        return -1;
+    }
 
-  if(clen < CRYPTO_NPUBBYTES) return -1;
-  *mlen = clen - CRYPTO_NPUBBYTES;
+    if (mlen) {
+        *mlen = clen - CRYPTO_ABYTES;
+    }
 
-  keysetup(&ctx, k);
-  memcpy(tag,c+(clen-CRYPTO_NPUBBYTES), CRYPTO_NPUBBYTES);
+    keysetup(&ctx, k);
 
-  memcpy(header,ad, adlen);
-  memcpy(header+adlen, npub, CRYPTO_NPUBBYTES);
-  process_header(&ctx, header, adlen+CRYPTO_NPUBBYTES);
-
-  result = decrypt_final(&ctx, c, *mlen, tag,m);
-
-  if (errno|result) return -1;
-  else return 0;
+    if (npub) {
+        unsigned char header[adlen + CRYPTO_NPUBBYTES];
+        memcpy(header, ad, adlen);
+        memcpy(header + adlen, npub, CRYPTO_NPUBBYTES);
+        process_header(&ctx, header, adlen + CRYPTO_NPUBBYTES);
+    } else {
+        process_header(&ctx, ad, adlen);
+    }
+    
+    unsigned char tag[CRYPTO_ABYTES];
+    memcpy(tag, c + (clen - CRYPTO_ABYTES), CRYPTO_ABYTES);
+    return decrypt_final(&ctx, c, *mlen, tag, m);
 }
