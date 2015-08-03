@@ -15,24 +15,25 @@ int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen,
                         const unsigned char *npub,
                         const unsigned char *k)
 {
-    struct poet_ctx_t ctx;
+    poet_ctx_t ctx;
     (void)nsec;
-
+    
     if (clen) {
         *clen = mlen + CRYPTO_ABYTES;
     }
-
-    keysetup(&ctx, k);
-
+    
+    keysetup_encrypt_only(&ctx, k);
+    
     if (npub) {
-        unsigned char header[adlen + CRYPTO_NPUBBYTES];
+        unsigned char *header = malloc((size_t)(adlen + CRYPTO_NPUBBYTES));
         memcpy(header, ad, adlen);
         memcpy(header + adlen, npub, CRYPTO_NPUBBYTES);
         process_header(&ctx, header, adlen + CRYPTO_NPUBBYTES);
+        free(header);
     } else {
         process_header(&ctx, ad, adlen);
     }
-
+    
     unsigned char *tag = c + mlen;
     encrypt_final(&ctx, m, mlen, c, tag);
     return 0;
@@ -47,7 +48,7 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
                         const unsigned char *npub,
                         const unsigned char *k)
 {
-    struct poet_ctx_t ctx;
+    poet_ctx_t ctx;
     (void)nsec;
     
     if (clen < CRYPTO_ABYTES) {
@@ -59,9 +60,9 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
     }
 
     keysetup(&ctx, k);
-
+    
     if (npub) {
-        unsigned char header[adlen + CRYPTO_NPUBBYTES];
+        unsigned char *header = malloc((size_t)(adlen + CRYPTO_NPUBBYTES));
         memcpy(header, ad, adlen);
         memcpy(header + adlen, npub, CRYPTO_NPUBBYTES);
         process_header(&ctx, header, adlen + CRYPTO_NPUBBYTES);

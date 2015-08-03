@@ -113,7 +113,7 @@ static void gf128mul_5(block h)
 
 // ---------------------------------------------------------------------
 
-void keysetup(struct poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
+void keysetup_encrypt_only(poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
 {
     uint8_t ctr[BLOCKLEN];
     AES_KEY aes_enc;
@@ -126,7 +126,6 @@ void keysetup(struct poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
     aes_encrypt(ctr, ctx->k,  &aes_enc);
 
     aes_expand_enc_key(ctx->k, KEYLEN_BITS, &(ctx->aes_enc));
-    aes_expand_dec_key(ctx->k, KEYLEN_BITS, &(ctx->aes_dec));
 
     /* Generate header key */
     ctr[BLOCKLEN - 1] = 1; 
@@ -140,7 +139,15 @@ void keysetup(struct poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
 
 // ---------------------------------------------------------------------
 
-void process_header(struct poet_ctx_t *ctx,
+void keysetup(poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
+{
+    keysetup_encrypt_only(ctx, key);
+    aes_expand_dec_key(ctx->k, KEYLEN_BITS, &(ctx->aes_dec));
+}
+
+// ---------------------------------------------------------------------
+
+void process_header(poet_ctx_t *ctx,
                     const uint8_t  *header,
                     uint64_t header_len)
 {
@@ -186,7 +193,7 @@ void process_header(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-static void encrypt_block(struct poet_ctx_t *ctx, 
+static void encrypt_block(poet_ctx_t *ctx, 
                           const uint8_t plaintext[16], 
                           uint8_t ciphertext[16])
 {
@@ -205,7 +212,7 @@ static void encrypt_block(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-void encrypt_final(struct poet_ctx_t *ctx,
+void encrypt_final(poet_ctx_t *ctx,
                    const uint8_t *plaintext,
                    uint64_t plen,
                    uint8_t *ciphertext,
@@ -234,9 +241,10 @@ void encrypt_final(struct poet_ctx_t *ctx,
 
     // Process last block + generate the tag
     TOP_HASH;
+
     xor_block(tmp, s, tmp);
     xor_block(ctx->x, tmp, ctx->x);
-    
+
     aes_encrypt(ctx->x, tmp, &(ctx->aes_enc));
 
     BOTTOM_HASH;
@@ -244,6 +252,10 @@ void encrypt_final(struct poet_ctx_t *ctx,
     xor_block(tmp2, tmp, ctx->y);
     memcpy(ctx->y, tmp, BLOCKLEN);
     xor_block(tmp, s, tmp2);
+
+    if (plen == 0) { // Empty message
+        xor_block(tmp, tmp, ctx->tau);
+    }
 
     // Perform tag splitting if needed
     memcpy(ciphertext + offset, tmp, plen);
@@ -263,26 +275,26 @@ void encrypt_final(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-static void decrypt_block(struct poet_ctx_t *ctx,
+static void decrypt_block(poet_ctx_t *ctx,
                           const uint8_t ciphertext[16],
                           uint8_t plaintext[16])
 {
     block tmp;
     BOTTOM_HASH;
-    xor_block(ctx->y, ciphertext, ctx->y);
 
+    xor_block(ctx->y, ciphertext, ctx->y);
     aes_decrypt(ctx->y, tmp, &(ctx->aes_dec));
 
     TOP_HASH;
-    xor_block(plaintext, tmp, ctx->x);
 
+    xor_block(plaintext, tmp, ctx->x);
     memcpy(ctx->x, tmp, BLOCKLEN);
     ctx->mlen += BLOCKLEN_BITS;
 }
 
 // ---------------------------------------------------------------------
 
-int decrypt_final(struct poet_ctx_t *ctx,
+int decrypt_final(poet_ctx_t *ctx,
                   const uint8_t *ciphertext,
                   uint64_t clen,
                   const uint8_t tag[BLOCKLEN],
@@ -313,12 +325,18 @@ int decrypt_final(struct poet_ctx_t *ctx,
 
     // Process last block and generate the tag
     BOTTOM_HASH;
-    xor_block(tmp, s, tmp);
-    xor_block(ctx->y, tmp, ctx->y);
 
+    xor_block(tmp, s, tmp);
+    
+    if (clen == 0) {
+        xor_block(tmp, ctx->tau, tmp);
+    }
+    
+    xor_block(ctx->y, tmp, ctx->y);
     aes_decrypt(ctx->y, tmp, &(ctx->aes_dec));
 
     TOP_HASH;
+
     xor_block(tmp2, tmp, ctx->x);
     xor_block(tmp2, s, tmp2);
     memcpy(ctx->x, tmp, BLOCKLEN);
@@ -329,10 +347,12 @@ int decrypt_final(struct poet_ctx_t *ctx,
 
     // Generate tag
     TOP_HASH;
+
     xor_block(ctx->x, ctx->tau , ctx->x);
     aes_encrypt(ctx->x, tmp, &(ctx->aes_enc));
 
     BOTTOM_HASH;
+
     xor_block(tmp, ctx->y, tmp);
     xor_block(tmp, ctx->tau, tmp);
 

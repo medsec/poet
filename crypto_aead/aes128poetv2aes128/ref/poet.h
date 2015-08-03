@@ -23,7 +23,7 @@ typedef int boolean;
 
 // ---------------------------------------------------------------------
 
-struct poet_ctx_t {
+typedef struct {
   AES_KEY aes_enc;   // Expanded encryption key for the AES
   AES_KEY aes_dec;   // Expanded decryption key for the AES
   AES_KEY aes_axu; // Expanded key for the AXU hash function (top and bottom)
@@ -34,28 +34,29 @@ struct poet_ctx_t {
   block y;           // Bottom-chaining value
   block tau;         // Result of the header-processing step
   uint64_t mlen;     // Message length
-};
+} poet_ctx_t;
 
 // ---------------------------------------------------------------------
 
-void keysetup(struct poet_ctx_t *ctx, 
-              const uint8_t key[KEYLEN]);
+void keysetup_encrypt_only(poet_ctx_t *ctx, const unsigned char key[KEYLEN]);
 
-void process_header(struct poet_ctx_t *ctx, 
-                    const uint8_t *header, 
-                    uint64_t header_len);
+void keysetup(poet_ctx_t *ctx, const unsigned char key[KEYLEN]);
 
-void encrypt_final(struct poet_ctx_t *ctx, 
-                   const uint8_t *plaintext, 
-                   uint64_t plen, 
-                   uint8_t *ciphertext, 
-                   uint8_t tag[BLOCKLEN]);
+void process_header(poet_ctx_t *ctx,
+                    const unsigned char *header,
+                    unsigned long long header_len);
 
-int decrypt_final(struct poet_ctx_t *ctx, 
-                  const uint8_t *ciphertext, 
-                  uint64_t clen, 
-                  const uint8_t tag[BLOCKLEN], 
-                  uint8_t *plaintext);
+void encrypt_final(poet_ctx_t *ctx,
+                   const unsigned char *plaintext,
+                   unsigned long long plen,
+                   unsigned char *ciphertext,
+                   unsigned char tag[TAGLEN]);
+
+int decrypt_final(poet_ctx_t *ctx,
+                  const unsigned char *ciphertext,
+                  unsigned long long clen,
+                  const unsigned char tag[TAGLEN],
+                  unsigned char *plaintext);
 
 // ---------------------------------------------------------------------
 

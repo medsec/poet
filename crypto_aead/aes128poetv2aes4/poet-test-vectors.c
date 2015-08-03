@@ -1,24 +1,28 @@
 #include <stdio.h>
 #include <string.h>
-#include <emmintrin.h>
 #include "poet.h"
 #include "api.h"
 
 // ---------------------------------------------------------------------
 
-extern int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen,
-                               const unsigned char *m, unsigned long long mlen,
-                               const unsigned char *ad, unsigned long long adlen,
-                               const unsigned char *nsec,
-                               const unsigned char *npub,
-                               const unsigned char *k);
+static void print_hex(const char *message, const unsigned char *x, const int len)
+{
+    int i;
+    puts(message);
 
-extern int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
-                               unsigned char *nsec,
-                               const unsigned char *c, unsigned long long clen,
-                               const unsigned char *ad, unsigned long long adlen,
-                               const unsigned char *npub,
-                               const unsigned char *k);
+    for (i = 0; i < len; i++)
+    {
+        if ((i != 0) && (i % 16 == 0)) puts("");
+        printf("%02x ", x[i]);
+    }
+
+    printf("     %d (octets)\n\n", len);
+}
+
+// ---------------------------------------------------------------------
+
+#ifdef NI_ENABLED
+#include <emmintrin.h>
 
 // ---------------------------------------------------------------------
 
@@ -46,23 +50,7 @@ static void print128(char* label, __m128i var)
 
 // ---------------------------------------------------------------------
 
-static void print_hex(const char *message, const unsigned char *x, const int len)
-{
-    int i;
-    puts(message);
-
-    for (i = 0; i < len; i++)
-    {
-        if ((i != 0) && (i % 16 == 0)) puts("");
-        printf("%02x ", x[i]);
-    }
-
-    printf("     %d (octets)\n\n", len);
-}
-
-// ---------------------------------------------------------------------
-
-static void print_context(const struct poet_ctx_t *ctx)
+static void print_context(const poet_ctx_t *ctx)
 {
     print128("K:   ", ctx->aes_enc[0]);
     print128("L:   ", ctx->l);
@@ -70,9 +58,21 @@ static void print_context(const struct poet_ctx_t *ctx)
     print128("Tau: ", ctx->tau);
 }
 
+#else
+
+static void print_context(const poet_ctx_t *ctx)
+{
+    print_hex("K:", (const unsigned char*)ctx->aes_enc.rd_key, BLOCKLEN);
+    print_hex("L:", ctx->l, BLOCKLEN);
+    print_hex("K_F:", (const unsigned char*)ctx->aes_axu.rd_key, BLOCKLEN);
+    print_hex("Tau:", ctx->tau, TAGLEN);
+}
+
+#endif 
+
 // ---------------------------------------------------------------------
 
-static void test_output(const struct poet_ctx_t *ctx,
+static void test_output(const poet_ctx_t *ctx,
                         const unsigned char *k, const unsigned long long klen,
                         const unsigned char *h, const unsigned long long hlen,
                         const unsigned char *m, const unsigned long long mlen,
@@ -99,7 +99,7 @@ static int run_test(const unsigned char *k,
                     const unsigned char *expected_c,
                     const unsigned char *expected_t)
 {
-    struct poet_ctx_t ctx;
+    poet_ctx_t ctx;
     unsigned char* c = (unsigned char*)malloc((size_t)mlen);
     unsigned char* m = (unsigned char*)malloc((size_t)mlen);
     unsigned long long clen = mlen;
@@ -129,6 +129,10 @@ static int run_test(const unsigned char *k,
         free(c);
         return -1;
     }
+
+    if (result != 0) {
+        puts("Verification failed");
+    }
     
     free(m);
     free(c);
@@ -156,13 +160,59 @@ static int test1()
         0x40, 0x13, 0x1a, 0xbe, 0x5d, 0xd7, 0xa3, 0x1f, 
         0x99, 0x72, 0x92, 0x20, 0xf1, 0x33, 0xeb, 0x1e
     };
-
     return run_test(k, NULL, hlen, m, mlen, c, t);
 }
 
 // ---------------------------------------------------------------------
 
 static int test2()
+{
+    unsigned long long mlen = 0;
+    const unsigned long long hlen = 24;
+    const unsigned char k[KEYLEN] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+    };
+    const unsigned char h[24] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+        0xde, 0xad, 0xbe, 0xef, 0xde, 0xaf, 0xba, 0xbe
+    };
+    const unsigned char t[TAGLEN] = {
+        0x73, 0xe6, 0xe5, 0x68, 0xa7, 0x90, 0x12, 0xf7, 
+        0x55, 0x91, 0x2c, 0x19, 0x38, 0x9d, 0xa8, 0x52
+    };
+    return run_test(k, h, hlen, NULL, mlen, NULL, t);
+}
+
+// ---------------------------------------------------------------------
+
+static int test3()
+{
+    unsigned long long mlen = 8;
+    const unsigned long long hlen = BLOCKLEN;
+    const unsigned char k[KEYLEN] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+    };
+    const unsigned char h[BLOCKLEN] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+    };
+    const unsigned char m[8] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    const unsigned char c[8] = {
+        0x83, 0x8a, 0xcb, 0x4e, 0xb1, 0x8c, 0x90, 0x69 
+    };
+    const unsigned char t[TAGLEN] = {
+        0x73, 0xe9, 0x22, 0x45, 0xdd, 0xa3, 0x32, 0x8d, 
+        0x98, 0xcc, 0x61, 0xaf, 0x40, 0xde, 0x5a, 0x90
+    };
+    return run_test(k, h, hlen, m, mlen, c, t);
+}
+
+// ---------------------------------------------------------------------
+
+static int test4()
 {
     unsigned long long mlen = 56;
     const unsigned long long hlen = BLOCKLEN;
@@ -200,28 +250,7 @@ static int test2()
 
 // ---------------------------------------------------------------------
 
-static int test3()
-{
-    unsigned long long mlen = 0;
-    const unsigned long long hlen = 24;
-    const unsigned char k[KEYLEN] = {
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-    };
-    const unsigned char h[24] = {
-        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
-        0xde, 0xad, 0xbe, 0xef, 0xde, 0xaf, 0xba, 0xbe
-    };
-    const unsigned char t[TAGLEN] = {
-        0x42, 0xc5, 0xa1, 0x70, 0xcf, 0x74, 0x5b, 0xb8, 
-        0xce, 0x84, 0x51, 0xad, 0x83, 0x38, 0xd7, 0x27
-    };
-    return run_test(k, h, hlen, NULL, mlen, NULL, t);
-}
-
-// ---------------------------------------------------------------------
-
-static int test4()
+static int test5()
 {
     unsigned long long mlen = 52;
     const unsigned long long hlen = 24;
@@ -261,7 +290,7 @@ static int test4()
 
 // ---------------------------------------------------------------------
 
-static int test5()
+static int test6()
 {
     const char k[] = "Edgar Allan Poe.";
     const char h[] = "\"Seldom we find,\" says Solomon Don Dunce,\n\"Half an idea in the profoundest sonnet.\nThrough all the flimsy things we see at once\nAs easily as through a Naples bonnet-\nTrash of all trash!- how can a lady don it?\nYet heavier far than your Petrarchan stuff-\nOwl-downy nonsense that the faintest puff\nTwirls into trunk-paper the while you con it.\"\nAnd, veritably, Sol is right enough.\nThe general tuckermanities are arrant\nBubbles- ephemeral and so transparent-\nBut this is, now- you may depend upon it-\nStable, opaque, immortal- all by dint\nOf the dear names that he concealed within 't.";
@@ -367,10 +396,11 @@ int main()
 {
     int result = 0;
     result |= test1();
-    result |= test3();
     result |= test2();
+    result |= test3();
     result |= test4();
     result |= test5();
+    result |= test6();
 
     if (result) {
         puts("Test result:  FAILED");

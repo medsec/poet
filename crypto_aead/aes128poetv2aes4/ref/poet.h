@@ -23,7 +23,7 @@ typedef int boolean;
 
 // ---------------------------------------------------------------------
 
-struct poet_ctx_t {
+typedef struct {
   AES_KEY aes_enc;   // Expanded encryption key for the AES
   AES_KEY aes_dec;   // Expanded decryption key for the AES
   AES_KEY aes_axu;   // Expanded key for the AXU hash function (top and bottom)
@@ -34,24 +34,26 @@ struct poet_ctx_t {
   block y;           // Bottom-chaining value
   block tau;         // Result of the header-processing step
   uint64_t mlen;     // Message length
-};
+} poet_ctx_t;
 
 // ---------------------------------------------------------------------
 
-void keysetup(struct poet_ctx_t *ctx, 
+void keysetup_encrypt_only(poet_ctx_t *ctx, const unsigned char key[KEYLEN]);
+
+void keysetup(poet_ctx_t *ctx, 
               const uint8_t key[KEYLEN]);
 
-void process_header(struct poet_ctx_t *ctx, 
+void process_header(poet_ctx_t *ctx, 
                     const uint8_t *header, 
                     uint64_t header_len);
 
-void encrypt_final(struct poet_ctx_t *ctx, 
+void encrypt_final(poet_ctx_t *ctx, 
                    const uint8_t *plaintext, 
                    uint64_t plen, 
                    uint8_t *ciphertext, 
                    uint8_t tag[BLOCKLEN]);
 
-int decrypt_final(struct poet_ctx_t *ctx, 
+int decrypt_final(poet_ctx_t *ctx, 
                   const uint8_t *ciphertext, 
                   uint64_t clen, 
                   const uint8_t tag[BLOCKLEN], 

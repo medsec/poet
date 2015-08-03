@@ -21,7 +21,7 @@ typedef __m128i  AXU_KEY[ROUND_KEYS_FOUR];
 
 // ---------------------------------------------------------------------
 
-struct poet_ctx_t {
+typedef struct {
     AES_KEY aes_enc;   // Expanded encryption key for the AES
     AES_KEY aes_dec;   // Expanded decryption key for the AES
     AXU_KEY aes_axu;   // Expanded key for the AXU hash function (top and bottom)
@@ -30,20 +30,26 @@ struct poet_ctx_t {
     __m128i y;         // Bottom-chaining value
     __m128i tau;       // Result of the header-processing step
     unsigned long long mlen;     // Message length
-};
+} poet_ctx_t;
 
 // ---------------------------------------------------------------------
 
-void keysetup(struct poet_ctx_t *ctx, const unsigned char key[KEYLEN]);
-void process_header(struct poet_ctx_t *ctx,
+void keysetup_encrypt_only(poet_ctx_t *ctx, const unsigned char key[KEYLEN]);
+
+void keysetup(poet_ctx_t *ctx, 
+              const unsigned char key[KEYLEN]);
+
+void process_header(poet_ctx_t *ctx,
                     const unsigned char *header,
                     unsigned long long header_len);
-void encrypt_final(struct poet_ctx_t *ctx,
+
+void encrypt_final(poet_ctx_t *ctx,
                    const unsigned char *plaintext,
                    unsigned long long plen,
                    unsigned char *ciphertext,
                    unsigned char tag[BLOCKLEN]);
-int decrypt_final(struct poet_ctx_t *ctx,
+
+int decrypt_final(poet_ctx_t *ctx,
                   const unsigned char *ciphertext,
                   unsigned long long clen,
                   const unsigned char tag[BLOCKLEN],

@@ -33,146 +33,9 @@
 #include "poet.h"
 #include "api.h"
 
-// ---------------------------------------------------------------------
-// AES-related
-// ---------------------------------------------------------------------
-
-static void aes_revert_key(const AES_KEY enc_key, AES_KEY dec_key)
-{
-    dec_key[10] = enc_key[0];
-    dec_key[9] = _mm_aesimc_si128(enc_key[1]);
-    dec_key[8] = _mm_aesimc_si128(enc_key[2]);
-    dec_key[7] = _mm_aesimc_si128(enc_key[3]);
-    dec_key[6] = _mm_aesimc_si128(enc_key[4]);
-    dec_key[5] = _mm_aesimc_si128(enc_key[5]);
-    dec_key[4] = _mm_aesimc_si128(enc_key[6]);
-    dec_key[3] = _mm_aesimc_si128(enc_key[7]);
-    dec_key[2] = _mm_aesimc_si128(enc_key[8]);
-    dec_key[1] = _mm_aesimc_si128(enc_key[9]);
-    dec_key[0] = enc_key[10];
-}
-
-// ---------------------------------------------------------------------
-
-static inline __m128i aes_keygen_assist(__m128i temp1, __m128i temp2)
-{
-    __m128i temp3;
-    temp2 = _mm_shuffle_epi32(temp2, 0xff);
-    temp3 = _mm_slli_si128(temp1, 0x4);
-    temp1 = _mm_xor_si128(temp1, temp3);
-    temp3 = _mm_slli_si128(temp3, 0x4);
-    temp1 = _mm_xor_si128(temp1, temp3);
-    temp3 = _mm_slli_si128(temp3, 0x4);
-    temp1 = _mm_xor_si128(temp1, temp3);
-    temp1 = _mm_xor_si128(temp1, temp2);
-    return temp1;
-}
-
-// ---------------------------------------------------------------------
-
-static void aes_expand_key(__m128i userkey, AES_KEY enc_key)
-{
-    __m128i temp1, temp2;
-    __m128i *key = (__m128i*)enc_key;
-
-    _mm_store_si128(&temp1, userkey);
-    _mm_store_si128(&key[0], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x1);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[1], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x2);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[2], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x4);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[3], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x8);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[4], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x10);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[5], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x20);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[6], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x40);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[7], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x80);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[8], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x1b);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[9], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x36);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[10], temp1);
-}
-// ---------------------------------------------------------------------
-
-static void aesfour_expand_key(__m128i userkey, AXU_KEY enc_key)
-{
-    __m128i temp1;
-    __m128i temp2;
-    __m128i *key = (__m128i*)enc_key;
-
-    _mm_storeu_si128(&temp1, userkey);
-    _mm_storeu_si128(&key[0], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x1);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[1], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x2);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[2], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x4);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[3], temp1);
-
-    temp2 = _mm_aeskeygenassist_si128(temp1, 0x8);
-    temp1 = aes_keygen_assist(temp1, temp2);
-    _mm_store_si128(&key[4], temp1);
-}
-
-// ---------------------------------------------------------------------
-
-static inline __m128i aes_encrypt(__m128i in, __m128i* k)
-{
-    __m128i x = _mm_xor_si128(in, k[0]);
-    x = _mm_aesenc_si128(x, k[1]);
-    x = _mm_aesenc_si128(x, k[2]);
-    x = _mm_aesenc_si128(x, k[3]);
-    x = _mm_aesenc_si128(x, k[4]);
-    x = _mm_aesenc_si128(x, k[5]);
-    x = _mm_aesenc_si128(x, k[6]);
-    x = _mm_aesenc_si128(x, k[7]);
-    x = _mm_aesenc_si128(x, k[8]);
-    x = _mm_aesenc_si128(x, k[9]);
-    return _mm_aesenclast_si128(x, k[10]);
-}
-
-// ---------------------------------------------------------------------
-
-static inline __m128i aesfour_encrypt(__m128i in, __m128i* k)
-{
-    __m128i x = _mm_xor_si128(in, k[0]);
-    x = _mm_aesenc_si128(x, k[1]);
-    x = _mm_aesenc_si128(x, k[2]);
-    x = _mm_aesenc_si128(x, k[3]);
-    return _mm_aesenc_si128(x, k[4]);
-}
+#ifdef DEBUG
+    #include <stdio.h>
+#endif
 
 // ---------------------------------------------------------------------
 // Load + Store
@@ -190,31 +53,28 @@ static inline __m128i aesfour_encrypt(__m128i in, __m128i* k)
 // Load + Store
 // ---------------------------------------------------------------------
 
-static __m128i loadu(const void *p)
-{
-    return _mm_loadu_si128((__m128i*)p);
-}
+static __m128i loadu(const void *p) { return _mm_loadu_si128((__m128i*)p); }
+static __m128i load(const void *p)  { return _mm_load_si128((__m128i*)p);  }
+static void storeu(const void *p, __m128i x) {_mm_storeu_si128((__m128i*)p, x);}
+static void store(const void *p, __m128i x)  {_mm_store_si128((__m128i*)p, x); }
 
 // ---------------------------------------------------------------------
 
-static __m128i load(const void *p)
+/**
+ * Returns a new __m128i value with its leftmost n bytes initialized with the
+ * leftmost n bytes of p.
+ */
+static __m128i load_n_bytes(const void *p, const size_t num_bytes)
 {
-    return _mm_load_si128((__m128i*)p);
-}
-
-// ---------------------------------------------------------------------
-
-static __m128i load_partial(const void *p, unsigned n)
-{
-    if (n == 0) {
+    if (num_bytes == 0) {
         return zero;
-    } else if (n % 16 == 0) {
+    } else if (num_bytes % 16 == 0) {
         return _mm_loadu_si128((__m128i*)p);
     } else {
         __m128i tmp;
         unsigned i;
 
-        for (i = 0; i < n; ++i) {
+        for (i = 0; i < num_bytes; ++i) {
             ((char*)&tmp)[i] = ((char*)p)[i];
         }
 
@@ -224,39 +84,26 @@ static __m128i load_partial(const void *p, unsigned n)
 
 // ---------------------------------------------------------------------
 
-static void storeu(const void *p, __m128i x)
-{
-    _mm_storeu_si128((__m128i*)p, x);
-}
-
-// ---------------------------------------------------------------------
-
-static void store(const void *p, __m128i x)
-{
-    _mm_store_si128((__m128i*)p, x);
-}
-
-// ---------------------------------------------------------------------
-
 /**
  * Stores the rightmost n bytes of x in the leftmost n bytes of p.
  * @example:
- * x = [1f,1e,1d..13,12,11,10]
- * p = [01,02,03..0c,0d,0e,0f], n = 2 =>
+ * x = [1f,1e,1d..13,12,11,10], 
+ * p = [01,02,03..0c,0d,0e,0f], and
+ * n = 2 yields
  * p = [1f,1e,03..0c,0d,0e,0f]
  */
-static void store_partial_left(const void *p, __m128i x, unsigned n)
+static void store_partial_left(const void *p, __m128i x, const size_t num_bytes)
 {
-    if (n == 0) {
+    if (num_bytes == 0) {
         return;
-    } else if (n >= BLOCKLEN) {
+    } else if (num_bytes >= 16) {
         storeu(p, x);
     } else {
-        unsigned i;
+        size_t i;
         char* p_ = (char*)p;
         char* x_ = (char*)&x;
 
-        for (i = 0; i < n; ++i) {
+        for (i = 0; i < num_bytes; ++i) {
             p_[i] = x_[i];
         }
     }
@@ -267,23 +114,24 @@ static void store_partial_left(const void *p, __m128i x, unsigned n)
 /**
  * Stores the rightmost n bytes of x in the leftmost n bytes of p.
  * @example:
- * x = [1f,1e,1d..13,12,11,10]
- * p = [01,02,03..0c,0d,0e,0f], n = 2 =>
+ * x = [1f,1e,1d..13,12,11,10], 
+ * p = [01,02,03..0c,0d,0e,0f], and
+ * n = 2 yields
  * p = [11,10,03..0c,0d,0e,0f]
  */
-static void store_partial_right(const void *p, __m128i x, unsigned n)
+static void store_partial_right(const void *p, __m128i x, const size_t num_bytes)
 {
-    if (n == 0) {
+    if (num_bytes == 0) {
         return;
-    } else if (n >= BLOCKLEN) {
+    } else if (num_bytes >= 16) {
         storeu(p, x);
     } else {
-        unsigned i;
+        size_t i;
         char* p_ = (char*)p;
         char* x_ = (char*)&x;
 
-        for (i = 0; i < n; ++i) {
-            p_[i] = x_[(BLOCKLEN - n) + i];
+        for (i = 0; i < num_bytes; ++i) {
+            p_[i] = x_[(16 - num_bytes) + i];
         }
     }
 }
@@ -293,28 +141,47 @@ static void store_partial_right(const void *p, __m128i x, unsigned n)
 /**
  * Stores the rightmost n bytes of x in the leftmost n bytes of p.
  * @example:
- * x = [1f,1e,1d..13,12,11,10]
- * p = [01,02,03..0c,0d,0e,0f], n = 2 =>
+ * x = [1f,1e,1d..13,12,11,10], 
+ * p = [01,02,03..0c,0d,0e,0f], and
+ * n = 2 yields
  * p = [01,02,03..0c,0d,1f,1e]
  */
 static void store_partial_from_left_to_right(const void *p,
         __m128i x,
-        unsigned n)
+        const size_t num_bytes)
 {
-    if (n == 0) {
+    if (num_bytes == 0) {
         return;
-    } else if (n >= BLOCKLEN) {
+    } else if (num_bytes >= 16) {
         storeu(p, x);
     } else {
-        unsigned i;
+        size_t i;
         char* p_ = (char*)p;
         char* x_ = (char*)&x;
 
-        for (i = 0; i < n; ++i) {
-            p_[(BLOCKLEN - n) + i] = x_[i];
+        for (i = 0; i < num_bytes; ++i) {
+            p_[(16 - num_bytes) + i] = x_[i];
         }
     }
 }
+
+// ---------------------------------------------------------------------
+
+#ifdef DEBUG
+static void print128(char* label, __m128i var)
+{
+    uint8_t val[BLOCKLEN];
+    store((void*)val, var);
+    printf("%s\n", label);
+    size_t i;
+
+    for (i = 0; i < BLOCKLEN; ++i) {
+        printf("%02x ", val[i]);
+    }
+
+    puts("\n");
+}
+#endif
 
 // ---------------------------------------------------------------------
 // Pad + Shift
@@ -331,22 +198,22 @@ static const unsigned char pad[] = {
 
 // ---------------------------------------------------------------------
 
-static __m128i zero_pad(__m128i x, unsigned zero_bytes)
+static __m128i zero_pad(__m128i x, unsigned num_zero_bytes)
 {
-    return vand(x, loadu((__m128i*)(pad + zero_bytes)));
+    return vand(x, loadu((__m128i*)(pad + num_zero_bytes)));
 }
 
 // ---------------------------------------------------------------------
 
-static __m128i one_zero_pad(__m128i x, unsigned one_zero_bytes)
+static __m128i one_zero_pad(__m128i x, size_t num_padding_bytes)
 {
-    __m128i *p = (__m128i*)(pad + one_zero_bytes);
+    __m128i *p = (__m128i*)(pad + num_padding_bytes);
     return vor(vand(x, loadu(p)), loadu(p + 1));
 }
 
 // ---------------------------------------------------------------------
 
-static inline __m128i shift_left_in(__m128i a, unsigned num_bytes) {
+static __m128i shift_left_in(__m128i a, unsigned num_bytes) {
     unsigned count = num_bytes * 8;
     __m128i result, tmp;
     result = _mm_srli_epi64(a, count);
@@ -375,7 +242,7 @@ static __m128i shift_left(__m128i a, unsigned num_bytes) {
 
 // ---------------------------------------------------------------------
 
-static inline __m128i shift_right_in(__m128i a, unsigned num_bytes) {
+static __m128i shift_right_in(__m128i a, unsigned num_bytes) {
     unsigned count = num_bytes * 8;
     __m128i result, tmp;
     result = _mm_slli_epi64(a, count);
@@ -403,13 +270,117 @@ static __m128i shift_right(__m128i a, unsigned num_bytes) {
 }
 
 // ---------------------------------------------------------------------
+// AES-related
+// ---------------------------------------------------------------------
+
+static void aes_create_decryption_key(const AES_KEY enc_key, AES_KEY dec_key)
+{
+    dec_key[10] = enc_key[0];
+    dec_key[9] = _mm_aesimc_si128(enc_key[1]);
+    dec_key[8] = _mm_aesimc_si128(enc_key[2]);
+    dec_key[7] = _mm_aesimc_si128(enc_key[3]);
+    dec_key[6] = _mm_aesimc_si128(enc_key[4]);
+    dec_key[5] = _mm_aesimc_si128(enc_key[5]);
+    dec_key[4] = _mm_aesimc_si128(enc_key[6]);
+    dec_key[3] = _mm_aesimc_si128(enc_key[7]);
+    dec_key[2] = _mm_aesimc_si128(enc_key[8]);
+    dec_key[1] = _mm_aesimc_si128(enc_key[9]);
+    dec_key[0] = enc_key[10];
+}
+
+// ---------------------------------------------------------------------
+
+static __m128i aes_keygen_assist(__m128i temp1, __m128i temp2)
+{
+    __m128i temp3;
+    temp2 = _mm_shuffle_epi32(temp2, 0xff);
+    temp3 = _mm_slli_si128(temp1, 0x4);
+    temp1 = _mm_xor_si128(temp1, temp3);
+    temp3 = _mm_slli_si128(temp3, 0x4);
+    temp1 = _mm_xor_si128(temp1, temp3);
+    temp3 = _mm_slli_si128(temp3, 0x4);
+    temp1 = _mm_xor_si128(temp1, temp3);
+    return _mm_xor_si128(temp1, temp2);
+}
+
+// ---------------------------------------------------------------------
+
+#define aes_create_round_key(temp1, temp2, rcon, k) \
+    temp2 = _mm_aeskeygenassist_si128(temp1, rcon); \
+    temp1 = aes_keygen_assist(temp1, temp2); \
+    _mm_store_si128(k, temp1)
+
+// ---------------------------------------------------------------------
+
+static void aesfour_expand_key(__m128i userkey, AXU_KEY enc_key)
+{
+    __m128i temp1, temp2;
+    __m128i *key = (__m128i*)enc_key;
+
+    _mm_storeu_si128(&temp1, userkey);
+    _mm_storeu_si128(&key[0], temp1);
+
+    aes_create_round_key(temp1, temp2, 0x01, &key[1]);
+    aes_create_round_key(temp1, temp2, 0x02, &key[2]);
+    aes_create_round_key(temp1, temp2, 0x04, &key[3]);
+    aes_create_round_key(temp1, temp2, 0x08, &key[4]);
+}
+
+// ---------------------------------------------------------------------
+
+static void aes_expand_key(__m128i userkey, AES_KEY enc_key)
+{
+    __m128i temp1, temp2;
+    __m128i *key = (__m128i*)enc_key;
+
+    _mm_store_si128(&temp1, userkey);
+    _mm_store_si128(&key[0], temp1);
+
+    aes_create_round_key(temp1, temp2, 0x01, &key[1]);
+    aes_create_round_key(temp1, temp2, 0x02, &key[2]);
+    aes_create_round_key(temp1, temp2, 0x04, &key[3]);
+    aes_create_round_key(temp1, temp2, 0x08, &key[4]);
+    aes_create_round_key(temp1, temp2, 0x10, &key[5]);
+    aes_create_round_key(temp1, temp2, 0x20, &key[6]);
+    aes_create_round_key(temp1, temp2, 0x40, &key[7]);
+    aes_create_round_key(temp1, temp2, 0x80, &key[8]);
+    aes_create_round_key(temp1, temp2, 0x1b, &key[9]);
+    aes_create_round_key(temp1, temp2, 0x36, &key[10]);
+}
+
+// ---------------------------------------------------------------------
+
+static __m128i aes_encrypt(__m128i in, __m128i* k)
+{
+    __m128i x = _mm_xor_si128(in, k[0]);
+    x = _mm_aesenc_si128(x, k[1]);
+    x = _mm_aesenc_si128(x, k[2]);
+    x = _mm_aesenc_si128(x, k[3]);
+    x = _mm_aesenc_si128(x, k[4]);
+    x = _mm_aesenc_si128(x, k[5]);
+    x = _mm_aesenc_si128(x, k[6]);
+    x = _mm_aesenc_si128(x, k[7]);
+    x = _mm_aesenc_si128(x, k[8]);
+    x = _mm_aesenc_si128(x, k[9]);
+    return _mm_aesenclast_si128(x, k[10]);
+}
+
+// ---------------------------------------------------------------------
+
+static __m128i aesfour_encrypt(__m128i in, __m128i* k)
+{
+    __m128i x = _mm_xor_si128(in, k[0]);
+    x = _mm_aesenc_si128(x, k[1]);
+    x = _mm_aesenc_si128(x, k[2]);
+    x = _mm_aesenc_si128(x, k[3]);
+    return _mm_aesenc_si128(x, k[4]);
+}
+
+// ---------------------------------------------------------------------
 // Doubling
 // ---------------------------------------------------------------------
 
-/**
- * Credits to Ted Krovetz.
- */
-static inline __m128i double_block_in(__m128i block) {
+static __m128i double_block_in(__m128i block) {
     const __m128i mask = _mm_set_epi32(135, 1, 1, 1);
     __m128i tmp = _mm_srai_epi32(block, 31);
     tmp = _mm_and_si128(tmp, mask);
@@ -418,11 +389,11 @@ static inline __m128i double_block_in(__m128i block) {
     return vxor(block, tmp);
 }
 
-static inline __m128i multiply_by_3_in(__m128i block) {
+static __m128i multiply_by_3_in(__m128i block) {
     return vxor(double_block_in(block), block);
 }
 
-static inline __m128i multiply_by_5_in(__m128i block) {
+static __m128i multiply_by_5_in(__m128i block) {
     return vxor(double_block_in(double_block_in(block)), block);
 }
 
@@ -431,7 +402,7 @@ static inline __m128i multiply_by_5_in(__m128i block) {
 // POET v1.
 // ---------------------------------------------------------------------
 
-static inline unsigned long long reverse_bits(unsigned long long x)
+static unsigned long long reverse_bits(unsigned long long x)
 {
     x = ((x & UINT64_C(0x0f0f0f0f0f0f0f0f)) << 4)
         | ((x & UINT64_C(0xf0f0f0f0f0f0f0f0)) >> 4);
@@ -442,7 +413,7 @@ static inline unsigned long long reverse_bits(unsigned long long x)
     return x;
 }
 
-static inline __m128i bit_revert(__m128i block)
+static __m128i bit_revert(__m128i block)
 {
     unsigned long long bytes[2];
     store(bytes, block);
@@ -451,17 +422,17 @@ static inline __m128i bit_revert(__m128i block)
     return load(bytes);
 }
 
-static inline __m128i double_block(__m128i block)
+static __m128i double_block(__m128i block)
 {
     return bit_revert(double_block_in(bit_revert(block)));
 }
 
-static inline __m128i multiply_by_3(__m128i block)
+static __m128i multiply_by_3(__m128i block)
 {
     return bit_revert(multiply_by_3_in(bit_revert(block)));
 }
 
-static inline __m128i multiply_by_5(__m128i block)
+static __m128i multiply_by_5(__m128i block)
 {
     return bit_revert(multiply_by_5_in(bit_revert(block)));
 }
@@ -470,7 +441,7 @@ static inline __m128i multiply_by_5(__m128i block)
 // The POET-specific logic
 // ---------------------------------------------------------------------
 
-void keysetup(struct poet_ctx_t *ctx, const unsigned char key[KEYLEN])
+void keysetup_encrypt_only(poet_ctx_t *ctx, const unsigned char key[KEYLEN])
 {
     AES_KEY expanded_key;
     __m128i sk = loadu(key);
@@ -481,7 +452,6 @@ void keysetup(struct poet_ctx_t *ctx, const unsigned char key[KEYLEN])
     k = aes_encrypt(zero, expanded_key);
 
     aes_expand_key(k, ctx->aes_enc);
-    aes_revert_key(ctx->aes_enc, ctx->aes_dec);
 
     ctx->l = aes_encrypt(one, expanded_key);
 
@@ -491,7 +461,15 @@ void keysetup(struct poet_ctx_t *ctx, const unsigned char key[KEYLEN])
 
 // ---------------------------------------------------------------------
 
-void process_header(struct poet_ctx_t *ctx,
+void keysetup(poet_ctx_t *ctx, const unsigned char key[KEYLEN])
+{
+    keysetup_encrypt_only(ctx, key);
+    aes_create_decryption_key(ctx->aes_enc, ctx->aes_dec);
+}
+
+// ---------------------------------------------------------------------
+
+void process_header(poet_ctx_t *ctx,
                     const unsigned char *header,
                     unsigned long long header_len)
 {
@@ -554,7 +532,7 @@ void process_header(struct poet_ctx_t *ctx,
     } else {
         l = multiply_by_5(l);
         __m128i tmp = one_zero_pad(
-            load_partial(header, header_len), BLOCKLEN - header_len
+            load_n_bytes(header, header_len), BLOCKLEN - header_len
         );
         sum = vxor3(tmp, l, sum);
     }
@@ -566,212 +544,334 @@ void process_header(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-static inline __m128i encrypt_length(unsigned long long len, AES_KEY key)
+static __m128i encode_length(const uint64_t len)
 {
-    return aes_encrypt(_mm_insert_epi64(zero, 8 * len, 0), key);
+    return _mm_insert_epi64(zero, 8 * len, 0);
 }
 
 // ---------------------------------------------------------------------
 
-static inline __m128i encrypt_block(__m128i p, __m128i* x, __m128i* y, 
-                                    __m128i* k, __m128i* hk)
-{
-    *x = vxor(*x, p);
-
-     p = vxor(*x, k[0]);
-    *x = vxor(*x, hk[0]);
-    *y = vxor(*y, hk[0]);
-
-    unsigned j;
-    for (j = 1; j <= AXU_ROUNDS; ++j)
-    {
-         p = _mm_aesenc_si128( p, k[j]);
-        *x = _mm_aesenc_si128(*x, hk[j]);
-        *y = _mm_aesenc_si128(*y, hk[j]);
-    }
-    for (j = AXU_ROUNDS+1; j < ROUNDS; ++j)
-    {
-         p = _mm_aesenc_si128( p, k[j]);
-    }
-
-     p = _mm_aesenclast_si128( p, k[ROUNDS]);
-
-     p = vxor( p, *y); // P = P xor Y
-    *y = vxor(*y,  p); // Y = Y xor (P xor Y) = P
-    return p;
-}
+#define xor_2blocks(x, y, kx, ky) \
+    x = vxor(x, kx); \
+    y = vxor(y, ky)
 
 // ---------------------------------------------------------------------
 
-void encrypt_final(struct poet_ctx_t *ctx,
+#define xor_3blocks(x, y, z, kx, ky, kz) \
+    x = vxor(x, kx); \
+    y = vxor(y, ky); \
+    z = vxor(z, kz)
+
+// ---------------------------------------------------------------------
+
+#define aes_encrypt_round_2blocks(x, y, kx, ky) \
+    x = _mm_aesenc_si128(x, kx); \
+    y = _mm_aesenc_si128(y, ky)
+
+// ---------------------------------------------------------------------
+
+#define aes_encrypt_2blocks(x, y, kx, ky) \
+    xor_2blocks(x, y, kx[0], ky[0]); \
+    aes_encrypt_round_2blocks(x, y, kx[1], ky[1]); \
+    aes_encrypt_round_2blocks(x, y, kx[2], ky[2]); \
+    aes_encrypt_round_2blocks(x, y, kx[3], ky[3]); \
+    aes_encrypt_round_2blocks(x, y, kx[4], ky[4]); \
+    y = _mm_aesenc_si128(y, ky[5]); \
+    y = _mm_aesenc_si128(y, ky[6]); \
+    y = _mm_aesenc_si128(y, ky[7]); \
+    y = _mm_aesenc_si128(y, ky[8]); \
+    y = _mm_aesenc_si128(y, ky[9]); \
+    y = _mm_aesenclast_si128(y, ky[10])
+
+// ---------------------------------------------------------------------
+
+#define aes_encrypt_round_3blocks(x, y, z, kx, ky, kz) \
+    x = _mm_aesenc_si128(x, kx); \
+    y = _mm_aesenc_si128(y, ky); \
+    z = _mm_aesenc_si128(z, kz)
+
+// ---------------------------------------------------------------------
+
+#define aes_encrypt_3blocks(x, y, z, hk, k, tmp_x, tmp_y, tmp_z, plaintext, ciphertext) \
+    aes_encrypt_round_3blocks(x, y, z, hk[1], hk[1], k[1]); \
+    aes_encrypt_round_3blocks(x, y, z, hk[2], hk[2], k[2]); \
+    tmp_x = vxor3(hk[4], hk[0], load(plaintext)); \
+    tmp_y = vxor(hk[4], hk[0]); \
+    aes_encrypt_round_3blocks(x, y, z, hk[3], hk[3], k[3]); \
+    aes_encrypt_round_3blocks(x, y, z, tmp_x, tmp_y, k[4]); \
+    z = _mm_aesenc_si128(z, k[5]); \
+    z = _mm_aesenc_si128(z, k[6]); \
+    z = _mm_aesenc_si128(z, k[7]); \
+    z = _mm_aesenc_si128(z, k[8]); \
+    tmp_z = vxor(k[10], hk[0]); \
+    z = _mm_aesenc_si128(z, k[9]); \
+    z = _mm_aesenclast_si128(z, tmp_z); \
+    store(ciphertext, vxor(z, y)); \
+    y = z; \
+    z = vxor3(x, k[0], hk[0])
+
+// ---------------------------------------------------------------------
+
+#define aes_encrypt_3blocks_no_whitening(x, y, z, k, hk) \
+    aes_encrypt_round_3blocks(x, y, z, hk[1], hk[1], k[1]); \
+    aes_encrypt_round_3blocks(x, y, z, hk[2], hk[2], k[2]); \
+    aes_encrypt_round_3blocks(x, y, z, hk[3], hk[3], k[3]); \
+    aes_encrypt_round_3blocks(x, y, z, hk[4], hk[4], k[4]); \
+    z = _mm_aesenc_si128(z, k[5]); \
+    z = _mm_aesenc_si128(z, k[6]); \
+    z = _mm_aesenc_si128(z, k[7]); \
+    z = _mm_aesenc_si128(z, k[8]); \
+    z = _mm_aesenc_si128(z, k[9]); \
+    z = _mm_aesenclast_si128(z, k[10])
+
+// ---------------------------------------------------------------------
+
+void encrypt_final(poet_ctx_t *ctx,
                    const unsigned char *plaintext,
                    unsigned long long plen,
                    unsigned char *ciphertext,
                    unsigned char tag[BLOCKLEN])
 {
-    __m128i s = encrypt_length(plen, ctx->aes_enc);
-    __m128i p;
+    __m128i* k = ctx->aes_enc;
+    __m128i* hk = ctx->aes_axu;
     __m128i x = ctx->x;
     __m128i y = ctx->y;
+    __m128i z;
+    const uint64_t plaintext_len = plen;
 
-    x = aesfour_encrypt(x, ctx->aes_axu);
+    x = aesfour_encrypt(x, hk);
 
-    while (plen > BLOCKLEN) // All blocks
-    {
-        p = encrypt_block(loadu(plaintext), &x, &y, ctx->aes_enc, ctx->aes_axu);
-        storeu(ciphertext, p);
+    if (plen >= BLOCKLEN) {
+        x = vxor(x, loadu(plaintext));
+        z = x;
+        xor_3blocks(x, y, z, hk[0], hk[0], k[0]); \
+        plaintext += BLOCKLEN;
+    }
 
+    __m128i tmp_x;
+    __m128i tmp_z;
+    __m128i tmp_y;
+
+    while (plen > 2*BLOCKLEN) {
+        aes_encrypt_3blocks(x, y, z, hk, k, tmp_x, tmp_y, tmp_z, plaintext, ciphertext);
         plaintext += BLOCKLEN;
         ciphertext += BLOCKLEN;
         plen -= BLOCKLEN;
     }
 
+    const __m128i s = aes_encrypt(encode_length(plaintext_len), k);
+
     if (plen == 0) { // Empty message
-        p = vxor(s, ctx->tau);
-        p = encrypt_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(s, p);
-        storeu(tag, p);
-    } else if (plen == BLOCKLEN) { // No tag splitting
-        p = vxor(s, loadu(plaintext));
-        p = encrypt_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(s, p);
-        storeu(ciphertext, p);
+        z = vxor3(x, s, ctx->tau);
+        aes_encrypt_2blocks(y, z, hk, k);
+        z = vxor(z, y);
+        z = vxor3(z, s, ctx->tau);
+        storeu(tag, z);
+    } else if (plen % BLOCKLEN == 0) { // No tag splitting
+        z = vxor(z, s);
+        x = vxor(x, s);
+        aes_encrypt_3blocks_no_whitening(x, y, z, k, hk);
+        storeu(ciphertext, vxor3(z, y, s));
 
         // Generate tag
-        p = ctx->tau;
-        p = encrypt_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(ctx->tau, p);
-        storeu(tag, p);
+        y = z;
+        z = vxor(x, ctx->tau);
+        aes_encrypt_2blocks(y, z, hk, k);
+        z = vxor3(z, y, ctx->tau);
+        storeu(tag, z);
     } else { // Tag splitting
-        p = zero_pad(load_partial(plaintext, plen), BLOCKLEN - plen);
-        p = vxor(s, vor(p, shift_right(ctx->tau, plen)));
-        p = encrypt_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(s, p);
-        
-        store_partial_left(ciphertext, p, plen);
-        store_partial_right(tag, p, BLOCKLEN - plen);
+        if (plen > BLOCKLEN) {
+            aes_encrypt_3blocks_no_whitening(x, y, z, k, hk);
+            storeu(ciphertext, vxor(z, y));
+            ciphertext += BLOCKLEN;
+            y = z; 
+        }
+
+        plen = plen % BLOCKLEN;
+        z = zero_pad(load_n_bytes(plaintext, plen), BLOCKLEN - plen);
+        z = vxor3(x, s, vor(z, shift_right(ctx->tau, plen)));
+        x = z;
+
+        xor_3blocks(x, y, z, hk[0], hk[0], k[0]);
+        aes_encrypt_3blocks_no_whitening(x, y, z, k, hk);
+
+        tmp_z = vxor3(z, s, y);
+        store_partial_left(ciphertext, tmp_z, plen);
+        store_partial_right(tag, tmp_z, BLOCKLEN - plen);
 
         // Generate tag
-        p = ctx->tau;
-        p = encrypt_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(p, ctx->tau);
-        store_partial_from_left_to_right(tag, p, plen);
+        y = z; 
+        z = vxor(x, ctx->tau);
+        xor_3blocks(x, y, z, hk[0], hk[0], k[0]);
+        aes_encrypt_3blocks_no_whitening(x, y, z, k, hk);
+
+        z = vxor3(z, ctx->tau, y);
+        store_partial_from_left_to_right(tag, z, plen);
     }
 }
 
 // ---------------------------------------------------------------------
 
-static inline __m128i decrypt_block(__m128i p, __m128i* x, __m128i* y, 
-                                    __m128i* k, __m128i* hk)
-{
-    *y = vxor(*y, p);
-
-     p = vxor(*y, k[0]);
-    *y = vxor(*y, hk[0]);
-    *x = vxor(*x, hk[0]);
-
-    unsigned j;
-    for (j = 1; j <= AXU_ROUNDS; ++j)
-    {
-         p = _mm_aesdec_si128( p, k[j]);
-        *x = _mm_aesenc_si128(*x, hk[j]);
-        *y = _mm_aesenc_si128(*y, hk[j]);
-    }
-    for (j = AXU_ROUNDS+1; j < ROUNDS; ++j)
-    {
-         p = _mm_aesdec_si128( p, k[j]);
-    }
-
-     p = _mm_aesdeclast_si128( p, k[ROUNDS]);
-
-     p = vxor( p, *x); 
-    *x = vxor(*x,  p);
-    return p;
-}
+#define aes_decrypt_round_2blocks(x, y, kx, ky) \
+    x = _mm_aesenc_si128(x, kx); \
+    y = _mm_aesdec_si128(y, ky)
 
 // ---------------------------------------------------------------------
 
-static inline __m128i encrypt_tag_block(__m128i p, __m128i* x, __m128i* y, 
-                                        __m128i* k, __m128i* hk)
-{
-    *x = vxor(aesfour_encrypt(*x, hk), p);
-     p = aes_encrypt(*x, k);
-
-     p = vxor(p, *y);
-    *y = vxor(p, *y);
-    return p;
-}
+#define aes_decrypt_round_3blocks(x, y, z, kx, ky, kz) \
+    x = _mm_aesenc_si128(x, kx); \
+    y = _mm_aesenc_si128(y, ky); \
+    z = _mm_aesdec_si128(z, kz)
 
 // ---------------------------------------------------------------------
 
-int decrypt_final(struct poet_ctx_t *ctx,
+#define aes_decrypt_2blocks(x, y, kx, ky) \
+    xor_2blocks(x, y, kx[0], ky[0]); \
+    aes_decrypt_round_2blocks(x, y, kx[1], ky[1]); \
+    aes_decrypt_round_2blocks(x, y, kx[2], ky[2]); \
+    aes_decrypt_round_2blocks(x, y, kx[3], ky[3]); \
+    aes_decrypt_round_2blocks(x, y, kx[4], ky[4]); \
+    y = _mm_aesdec_si128(y, ky[5]); \
+    y = _mm_aesdec_si128(y, ky[6]); \
+    y = _mm_aesdec_si128(y, ky[7]); \
+    y = _mm_aesdec_si128(y, ky[8]); \
+    y = _mm_aesdec_si128(y, ky[9]); \
+    y = _mm_aesdeclast_si128(y, ky[10])
+
+// ---------------------------------------------------------------------
+
+#define aes_decrypt_3blocks(x, y, z, k, hk, p, c, tmp_x, tmp_y, tmp_z) \
+    aes_decrypt_round_3blocks(x, y, z, hk[1], hk[1], k[1]); \
+    aes_decrypt_round_3blocks(x, y, z, hk[2], hk[2], k[2]); \
+    tmp_y = vxor3(hk[4], hk[0], loadu(c)); \
+    tmp_x = vxor(hk[4], hk[0]); \
+    aes_decrypt_round_3blocks(x, y, z, hk[3], hk[3], k[3]); \
+    aes_decrypt_round_3blocks(x, y, z, tmp_x, tmp_y, k[4]); \
+    z = _mm_aesdec_si128(z, k[5]); \
+    z = _mm_aesdec_si128(z, k[6]); \
+    z = _mm_aesdec_si128(z, k[7]); \
+    z = _mm_aesdec_si128(z, k[8]); \
+    tmp_z = vxor(k[10], hk[0]); \
+    z = _mm_aesdec_si128(z, k[9]); \
+    z = _mm_aesdeclast_si128(z, tmp_z); \
+    store(p, vxor(x, z)); \
+    x = z; \
+    z = vxor3(y, k[0], hk[0])
+
+// ---------------------------------------------------------------------
+
+#define aes_decrypt_3blocks_no_whitening(x, y, z, k, hk) \
+    aes_decrypt_round_3blocks(x, y, z, hk[1], hk[1], k[1]); \
+    aes_decrypt_round_3blocks(x, y, z, hk[2], hk[2], k[2]); \
+    aes_decrypt_round_3blocks(x, y, z, hk[3], hk[3], k[3]); \
+    aes_decrypt_round_3blocks(x, y, z, hk[4], hk[4], k[4]); \
+    z = _mm_aesdec_si128(z, k[5]); \
+    z = _mm_aesdec_si128(z, k[6]); \
+    z = _mm_aesdec_si128(z, k[7]); \
+    z = _mm_aesdec_si128(z, k[8]); \
+    z = _mm_aesdec_si128(z, k[9]); \
+    z = _mm_aesdeclast_si128(z, k[10])
+
+// ---------------------------------------------------------------------
+
+#define encrypt_tag_block(x, y, z, k, hk) \
+    x = aesfour_encrypt(x, hk); \
+    z = vxor(z, x); \
+    z = aes_encrypt(z, k)
+
+// ---------------------------------------------------------------------
+
+int decrypt_final(poet_ctx_t *ctx,
                   const unsigned char *ciphertext,
                   unsigned long long clen,
-                  const unsigned char tag[BLOCKLEN],
+                  const unsigned char tag[TAGLEN],
                   unsigned char *plaintext)
 {
-    __m128i s = encrypt_length(clen, ctx->aes_enc);
-    __m128i p;
+    __m128i* k = ctx->aes_dec;
+    __m128i* hk = ctx->aes_axu;
     __m128i x = ctx->x;
-    __m128i y = ctx->y;
+    __m128i y = aesfour_encrypt(ctx->y, hk);
+    __m128i z;
+    const uint64_t plaintext_len = clen;
+    
+    if (clen >= BLOCKLEN) {
+        z = loadu(ciphertext);
+        y = vxor(y, z);
+        z = y;
+        xor_3blocks(x, y, z, hk[0], hk[0], k[0]);
+        ciphertext += BLOCKLEN;
+    }
 
-    y = aesfour_encrypt(y, ctx->aes_axu);
+    __m128i tmp_x;
+    __m128i tmp_z;
+    __m128i tmp_y;
 
-    while (clen > BLOCKLEN) // All blocks
-    {
-        p = decrypt_block(loadu(ciphertext), &x, &y, ctx->aes_dec, ctx->aes_axu);
-        storeu(plaintext, p);
-
+    while (clen > 2*BLOCKLEN) {
+        aes_decrypt_3blocks(x, y, z, k, hk, plaintext, ciphertext, tmp_x, tmp_y, tmp_z);
         plaintext += BLOCKLEN;
         ciphertext += BLOCKLEN;
         clen -= BLOCKLEN;
     }
-
-    __m128i t = load(tag);
-
+    
+    __m128i s = aes_encrypt(encode_length(plaintext_len), ctx->aes_enc);
+    const __m128i t = loadu(tag);
+    
     if (clen == 0) { // Empty ciphertext
-        p = vxor(s, ctx->tau);
-        p = encrypt_tag_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(s, p);
-        return _mm_testc_si128(t, p) - 1;
+        z = vxor(y, t);
+        z = vxor3(z, s, ctx->tau);
+        aes_decrypt_2blocks(x, z, hk, k);
+        z = vxor(z, ctx->tau);
+        x = vxor(x, s);
+        return _mm_testc_si128(z, x) - 1;
     } else if (clen == BLOCKLEN) { // No tag splitting
-        // Process final message block
-        p = vxor(s, loadu(ciphertext));
-        p = decrypt_block(p, &x, &y, ctx->aes_dec, ctx->aes_axu);
-        p = vxor(s, p);
-        storeu(plaintext, p);
+        z = vxor(z, s);
+        y = vxor(y, s);
+        aes_decrypt_3blocks_no_whitening(x, y, z, k, hk);
+        storeu(plaintext, vxor3(z, x, s));
 
         // Generate tag
-        p = ctx->tau;
-        p = encrypt_tag_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(ctx->tau, p);
-        return _mm_testc_si128(t, p) - 1;
+        x = z;
+        z = vxor3(y, ctx->tau, t);
+        aes_decrypt_2blocks(x, z, hk, k);
+        z = vxor(z, ctx->tau);
+        return _mm_testc_si128(z, x) - 1;
     } else { // Tag splitting
-        // Process final message block
-        p = zero_pad(load_partial(ciphertext, clen), BLOCKLEN - clen);
-        p = vxor(s, vor(p, shift_right(t, clen)));
-        p = decrypt_block(p, &x, &y, ctx->aes_dec, ctx->aes_axu);
-        p = vxor(p, s);
-        store_partial_left(plaintext, p, clen);
+        if (clen > BLOCKLEN) {
+            aes_decrypt_3blocks_no_whitening(x, y, z, k, hk);
+            storeu(plaintext, vxor(z, x));
+            plaintext += BLOCKLEN;
+            clen -= BLOCKLEN;
+            x = z;
+        }
 
-        // c = C_L || T^{alpha}
-        // p = M_L || tau^{alpha}
+        z = zero_pad(load_n_bytes(ciphertext, clen), BLOCKLEN - clen);
+        z = vxor3(y, s, vor(z, shift_right(t, clen)));
+        y = z;
 
-        __m128i tmp = shift_left(p, clen);
+        xor_3blocks(x, y, z, hk[0], hk[0], k[0]);
+        aes_decrypt_3blocks_no_whitening(x, y, z, k, hk);
+
+        tmp_z = vxor3(z, s, x); // ok
+        store_partial_left(plaintext, tmp_z, clen); // ok
+
+        // p = P_L || T^{alpha}
+        // z = M_L || tau^{alpha}
+        __m128i tmp = shift_left(tmp_z, clen);
         __m128i tau_alpha = zero_pad(ctx->tau, clen);
-
         int alpha = _mm_testc_si128(tau_alpha, tmp);
+        
+        // Generate tag
+        x = z; 
+        z = ctx->tau;
+        encrypt_tag_block(x, y, z, ctx->aes_enc, hk);
 
-        p = ctx->tau;
-        p = encrypt_tag_block(p, &x, &y, ctx->aes_enc, ctx->aes_axu);
-        p = vxor(ctx->tau, p);
+        z = vxor3(z, y, ctx->tau);
 
         // t = T^{alpha} || T^{beta}
-        // p = T^{beta}  || Z
-        __m128i t_beta = shift_left(t, 16 - clen);
-        tmp = zero_pad(p, 16 - clen);
+        // z = T^{beta}  || Z
+        __m128i t_beta = shift_left(t, BLOCKLEN - clen);
+        tmp = zero_pad(z, BLOCKLEN - clen);
         int beta = _mm_testc_si128(t_beta, tmp);
-
         return alpha + beta - 2;
     }
 }
