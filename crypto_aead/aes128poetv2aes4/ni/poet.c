@@ -238,14 +238,12 @@ static __m128i shift_right(__m128i a, const size_t num_bytes) {
         return zero;
     } else if (num_bytes < 8) {
         return shift_right_in(a, num_bytes);
-    } else if (num_bytes ==  8) { return _mm_srli_si128(a,  8); }
-      else if (num_bytes ==  9) { return _mm_srli_si128(a,  9); }
-      else if (num_bytes == 10) { return _mm_srli_si128(a, 10); }
-      else if (num_bytes == 11) { return _mm_srli_si128(a, 11); }
-      else if (num_bytes == 12) { return _mm_srli_si128(a, 12); }
-      else if (num_bytes == 13) { return _mm_srli_si128(a, 13); }
-      else if (num_bytes == 14) { return _mm_srli_si128(a, 14); }
-      else { return _mm_srli_si128(a, 15); }
+    } else if (num_bytes == 8) { 
+        return _mm_srli_si128(a,  8); 
+    } else {
+        a = _mm_srli_si128(a,  8);
+        return _mm_srli_epi64(a, (num_bytes-8) * 8);
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -269,14 +267,12 @@ static __m128i shift_left(__m128i a, const size_t num_bytes) {
         return zero;
     } else if (num_bytes < 8) {
         return shift_left_in(a, num_bytes);
-    } else if (num_bytes ==  8) { return _mm_slli_si128(a,  8); }
-      else if (num_bytes ==  9) { return _mm_slli_si128(a,  9); }
-      else if (num_bytes == 10) { return _mm_slli_si128(a, 10); }
-      else if (num_bytes == 11) { return _mm_slli_si128(a, 11); }
-      else if (num_bytes == 12) { return _mm_slli_si128(a, 12); }
-      else if (num_bytes == 13) { return _mm_slli_si128(a, 13); }
-      else if (num_bytes == 14) { return _mm_slli_si128(a, 14); }
-      else { return _mm_slli_si128(a, 15); }
+    } else if (num_bytes == 8) { 
+        return _mm_slli_si128(a,  8); 
+    } else {
+        a = _mm_slli_si128(a,  8);
+        return _mm_slli_epi64(a, (num_bytes-8) * 8);
+    }
 }
 
 // ---------------------------------------------------------------------
