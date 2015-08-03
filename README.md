@@ -16,11 +16,16 @@ http://www.uni-weimar.de/de/medien/professuren/mediensicherheit/research/poet/
 
 Content
 -------
-* C reference implementation of POET-AES128 with software AES
-* C reference implementation of POET-AES128 with AES-NI
-
+* C reference implementation of POET-AES128 (v1) with software AES
+* C optimized implementation of POET-AES128 (v1) with AES-NI
+* C reference implementation of POET-AES4 (v1) with software AES
+* C optimized implementation of POET-AES4 (v1) with AES-NI
+* C reference implementation of POET-AES128 (v2) with software AES
+* C optimized implementation of POET-AES128 (v2) with AES-NI
+* C reference implementation of POET-AES4 (v2) with software AES
+* C optimized implementation of POET-AES4 (v2) with AES-NI
 
 Dependencies
 ------------
-* gcc     (http://gcc.gnu.org/)
+* clang   (http://clang.llvm.org/)
 * make    (http://www.gnu.org/software/make/)
