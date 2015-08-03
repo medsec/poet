@@ -51,7 +51,7 @@ crypto_aead.h:
 	touch crypto_aead.h
 
 clean:
-	rm -f *.o $(NI)/*.o $(REF)/*.o core *.gch *~ 
+	rm -f *.o $(NI)/*.o $(REF)/*.o core* *.gch *~ 
 	rm -f poet-ref-test-vectors poet-ni-test-vectors poet-ni-benchmark
 
 
