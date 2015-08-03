@@ -1,6 +1,6 @@
 /*
 // @author Eik List
-// @last-modified 2015-04-17
+// @last-modified 2015-08-03
 // Re-uses some functions/macros from the AEZv3 implementation. 
 // Credits for these to Ted Krovetz.
 // This is free and unencumbered software released into the public domain.
@@ -54,10 +54,10 @@
 // Load + Store
 // ---------------------------------------------------------------------
 
-static __m128i loadu(const void *p) { return _mm_loadu_si128((__m128i*)p); }
-static __m128i load(const void *p)  { return _mm_load_si128((__m128i*)p);  }
-static void storeu(const void *p, __m128i x) {_mm_storeu_si128((__m128i*)p, x);}
-static void store(const void *p, __m128i x)  {_mm_store_si128((__m128i*)p, x); }
+static __m128i loadu(const void* p) { return _mm_loadu_si128((__m128i*)p); }
+static __m128i load(const void* p)  { return _mm_load_si128((__m128i*)p);  }
+static void storeu(const void* p, __m128i x) { _mm_storeu_si128((__m128i*)p, x); }
+static void store(const void* p, __m128i x)  { _mm_store_si128((__m128i*)p, x);  }
 
 // ---------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ static void store(const void *p, __m128i x)  {_mm_store_si128((__m128i*)p, x); }
  * Returns a new __m128i value with its leftmost n bytes initialized with the
  * leftmost n bytes of p.
  */
-static __m128i load_n_bytes(const void *p, const size_t num_bytes)
+static __m128i load_n_bytes(const uint8_t* p, const size_t num_bytes)
 {
     if (num_bytes == 0) {
         return zero;
@@ -93,7 +93,9 @@ static __m128i load_n_bytes(const void *p, const size_t num_bytes)
  * n = 2 yields
  * p = [1f,1e,03..0c,0d,0e,0f]
  */
-static void store_partial_left(const void *p, __m128i x, const size_t num_bytes)
+static void store_partial_left(const uint8_t* p, 
+                               __m128i x, 
+                               const size_t num_bytes)
 {
     if (num_bytes == 0) {
         return;
@@ -120,7 +122,9 @@ static void store_partial_left(const void *p, __m128i x, const size_t num_bytes)
  * n = 2 yields
  * p = [11,10,03..0c,0d,0e,0f]
  */
-static void store_partial_right(const void *p, __m128i x, const size_t num_bytes)
+static void store_partial_right(const uint8_t* p, 
+                                __m128i x, 
+                                const size_t num_bytes)
 {
     if (num_bytes == 0) {
         return;
@@ -147,7 +151,7 @@ static void store_partial_right(const void *p, __m128i x, const size_t num_bytes
  * n = 2 yields
  * p = [01,02,03..0c,0d,1f,1e]
  */
-static void store_partial_from_left_to_right(const void *p,
+static void store_partial_from_left_to_right(const uint8_t* p,
         __m128i x,
         const size_t num_bytes)
 {
@@ -196,41 +200,12 @@ static __m128i one_zero_pad(__m128i x, size_t num_padding_bytes)
 
 // ---------------------------------------------------------------------
 
-static __m128i shift_left_in(__m128i a, size_t num_bytes) {
+static __m128i shift_right_in(__m128i a, size_t num_bytes) {
     size_t count = num_bytes * 8;
     __m128i result, tmp;
     result = _mm_srli_epi64(a, count);
     tmp = _mm_srli_si128(a, 8);
     tmp = _mm_slli_epi64(tmp, 64 - (count));
-    result = _mm_or_si128(result, tmp);
-    return result;
-}
-
-// ---------------------------------------------------------------------
-
-static __m128i shift_left(__m128i a, size_t num_bytes) {
-    if (num_bytes == 0) {
-        return a;
-    } else if (num_bytes >= 16) {
-        return zero;
-    } else if (num_bytes < 8) {
-        return shift_left_in(a, num_bytes);
-    } else if (num_bytes == 8) {
-        return _mm_srli_si128(a, 8);
-    } else {
-        a = _mm_srli_si128(a, 8);
-        return shift_left_in(a, num_bytes - 8);
-    }
-}
-
-// ---------------------------------------------------------------------
-
-static __m128i shift_right_in(__m128i a, size_t num_bytes) {
-    size_t count = num_bytes * 8;
-    __m128i result, tmp;
-    result = _mm_slli_epi64(a, count);
-    tmp = _mm_slli_si128(a, 8);
-    tmp = _mm_srli_epi64(tmp, 64 - (count));
     result = _mm_or_si128(result, tmp);
     return result;
 }
@@ -245,10 +220,39 @@ static __m128i shift_right(__m128i a, size_t num_bytes) {
     } else if (num_bytes < 8) {
         return shift_right_in(a, num_bytes);
     } else if (num_bytes == 8) {
+        return _mm_srli_si128(a, 8);
+    } else {
+        a = _mm_srli_si128(a, 8);
+        return shift_right_in(a, num_bytes - 8);
+    }
+}
+
+// ---------------------------------------------------------------------
+
+static __m128i shift_left_in(__m128i a, size_t num_bytes) {
+    size_t count = num_bytes * 8;
+    __m128i result, tmp;
+    result = _mm_slli_epi64(a, count);
+    tmp = _mm_slli_si128(a, 8);
+    tmp = _mm_srli_epi64(tmp, 64 - (count));
+    result = _mm_or_si128(result, tmp);
+    return result;
+}
+
+// ---------------------------------------------------------------------
+
+static __m128i shift_left(__m128i a, size_t num_bytes) {
+    if (num_bytes == 0) {
+        return a;
+    } else if (num_bytes >= 16) {
+        return zero;
+    } else if (num_bytes < 8) {
+        return shift_left_in(a, num_bytes);
+    } else if (num_bytes == 8) {
         return _mm_slli_si128(a, 8);
     } else {
         a = _mm_slli_si128(a, 8);
-        return shift_right_in(a, num_bytes - 8);
+        return shift_left_in(a, num_bytes - 8);
     }
 }
 
@@ -693,7 +697,7 @@ void encrypt_final(poet_ctx_t *ctx,
 
         plen = plen % BLOCKLEN;
         z = zero_pad(load_n_bytes(plaintext, plen), BLOCKLEN - plen);
-        z = vxor3(x, s, vor(z, shift_right(ctx->tau, plen)));
+        z = vxor3(x, s, vor(z, shift_left(ctx->tau, plen)));
         x = z;
 
         xor_3blocks(x, y, z, ctx->aes_axu[0], ctx->aes_axu[0], ctx->aes_enc[0]);
@@ -861,7 +865,7 @@ int decrypt_final(poet_ctx_t *ctx,
         }
 
         z = zero_pad(load_n_bytes(ciphertext, clen), BLOCKLEN - clen);
-        z = vxor3(y, s, vor(z, shift_right(t, clen)));
+        z = vxor3(y, s, vor(z, shift_left(t, clen)));
         y = z;
 
         xor_3blocks(x, y, z, ctx->aes_axu[0], ctx->aes_axu[0], ctx->aes_dec[0]);
@@ -872,7 +876,7 @@ int decrypt_final(poet_ctx_t *ctx,
 
         // p = P_L || T^{alpha}
         // z = M_L || tau^{alpha}
-        __m128i tmp = shift_left(tmp_z, clen);
+        __m128i tmp = shift_right(tmp_z, clen);
         __m128i tau_alpha = zero_pad(ctx->tau, clen);
         int alpha = _mm_testc_si128(tau_alpha, tmp);
 
@@ -884,7 +888,7 @@ int decrypt_final(poet_ctx_t *ctx,
 
         // t = T^{alpha} || T^{beta}
         // z = T^{beta}  || Z
-        __m128i t_beta = shift_left(t, BLOCKLEN - clen);
+        __m128i t_beta = shift_right(t, BLOCKLEN - clen);
         tmp = zero_pad(z, BLOCKLEN - clen);
         int beta = _mm_testc_si128(t_beta, tmp);
 
