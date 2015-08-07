@@ -1,3 +1,31 @@
+/*
+// @author Eik List
+// @last-modified 2015-08-07
+// This is free and unencumbered software released into the public domain.
+//
+// Anyone is free to copy, modify, publish, use, compile, sell, or
+// distribute this software, either in source code form or as a compiled
+// binary, for any purpose, commercial or non-commercial, and by any
+// means.
+//
+// In jurisdictions that recognize copyright laws, the author or authors
+// of this software dedicate any and all copyright interest in the
+// software to the public domain. We make this dedication for the benefit
+// of the public at large and to the detriment of our heirs and
+// successors. We intend this dedication to be an overt act of
+// relinquishment in perpetuity of all present and future rights to this
+// software under copyright law.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+// OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+// ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+//
+// For more information, please refer to <http://unlicense.org/>
+*/
 #ifdef DEBUG
     #include <stdio.h>
 #endif
@@ -22,8 +50,7 @@ static void print_block(const char *label, const uint8_t *c, const int len)
     printf("%s: \n", label);
     int i;
 
-    for (i = 0; i < len; i++)
-    {
+    for (i = 0; i < len; i++) {
         printf("%02x ", c[i]);
     }
 
@@ -113,7 +140,7 @@ static void gf128mul_5(block h)
 
 // ---------------------------------------------------------------------
 
-void keysetup(struct poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
+void keysetup(poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
 {
     uint8_t ctr[BLOCKLEN];
     AES_KEY aes_enc;
@@ -148,7 +175,7 @@ void keysetup(struct poet_ctx_t *ctx, const uint8_t key[KEYLEN_BITS])
 
 // ---------------------------------------------------------------------
 
-void process_header(struct poet_ctx_t *ctx,
+void process_header(poet_ctx_t *ctx,
                     const uint8_t  *header,
                     uint64_t header_len)
 {
@@ -193,7 +220,7 @@ void process_header(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-static void encrypt_block(struct poet_ctx_t *ctx, 
+static void encrypt_block(poet_ctx_t *ctx, 
                           const uint8_t plaintext[16], 
                           uint8_t ciphertext[16])
 {
@@ -212,7 +239,7 @@ static void encrypt_block(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-void encrypt_final(struct poet_ctx_t *ctx,
+void encrypt_final(poet_ctx_t *ctx,
                    const uint8_t *plaintext,
                    uint64_t plen,
                    uint8_t *ciphertext,
@@ -271,7 +298,7 @@ void encrypt_final(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-static void decrypt_block(struct poet_ctx_t *ctx,
+static void decrypt_block(poet_ctx_t *ctx,
                           const uint8_t ciphertext[16],
                           uint8_t plaintext[16])
 {
@@ -290,7 +317,7 @@ static void decrypt_block(struct poet_ctx_t *ctx,
 
 // ---------------------------------------------------------------------
 
-int decrypt_final(struct poet_ctx_t *ctx,
+int decrypt_final(poet_ctx_t *ctx,
                   const uint8_t *ciphertext,
                   uint64_t clen,
                   const uint8_t tag[BLOCKLEN],

@@ -348,41 +348,12 @@ static __m128i one_zero_pad(__m128i x, unsigned one_zero_bytes)
 
 // ---------------------------------------------------------------------
 
-static inline __m128i shift_left_in(__m128i a, unsigned num_bytes) {
+static inline __m128i shift_right_in(__m128i a, unsigned num_bytes) {
     unsigned count = num_bytes * 8;
     __m128i result, tmp;
     result = _mm_srli_epi64(a, count);
     tmp = _mm_srli_si128(a, 8);
     tmp = _mm_slli_epi64(tmp, 64 - (count));
-    result = _mm_or_si128(result, tmp);
-    return result;
-}
-
-// ---------------------------------------------------------------------
-
-static __m128i shift_left(__m128i a, unsigned num_bytes) {
-    if (num_bytes == 0) {
-        return a;
-    } else if (num_bytes >= 16) {
-        return zero;
-    } else if (num_bytes < 8) {
-        return shift_left_in(a, num_bytes);
-    } else if (num_bytes == 8) {
-        return _mm_srli_si128(a, 8);
-    } else {
-        a = _mm_srli_si128(a, 8);
-        return shift_left_in(a, num_bytes - 8);
-    }
-}
-
-// ---------------------------------------------------------------------
-
-static inline __m128i shift_right_in(__m128i a, unsigned num_bytes) {
-    unsigned count = num_bytes * 8;
-    __m128i result, tmp;
-    result = _mm_slli_epi64(a, count);
-    tmp = _mm_slli_si128(a, 8);
-    tmp = _mm_srli_epi64(tmp, 64 - (count));
     result = _mm_or_si128(result, tmp);
     return result;
 }
@@ -397,10 +368,39 @@ static __m128i shift_right(__m128i a, unsigned num_bytes) {
     } else if (num_bytes < 8) {
         return shift_right_in(a, num_bytes);
     } else if (num_bytes == 8) {
+        return _mm_srli_si128(a, 8);
+    } else {
+        a = _mm_srli_si128(a,  8);
+        return _mm_srli_epi64(a, (num_bytes-8) * 8);
+    }
+}
+
+// ---------------------------------------------------------------------
+
+static inline __m128i shift_left_in(__m128i a, unsigned num_bytes) {
+    unsigned count = num_bytes * 8;
+    __m128i result, tmp;
+    result = _mm_slli_epi64(a, count);
+    tmp = _mm_slli_si128(a, 8);
+    tmp = _mm_srli_epi64(tmp, 64 - (count));
+    result = _mm_or_si128(result, tmp);
+    return result;
+}
+
+// ---------------------------------------------------------------------
+
+static __m128i shift_left(__m128i a, unsigned num_bytes) {
+    if (num_bytes == 0) {
+        return a;
+    } else if (num_bytes >= 16) {
+        return zero;
+    } else if (num_bytes < 8) {
+        return shift_left_in(a, num_bytes);
+    } else if (num_bytes == 8) {
         return _mm_slli_si128(a, 8);
     } else {
-        a = _mm_slli_si128(a, 8);
-        return shift_right_in(a, num_bytes - 8);
+        a = _mm_slli_si128(a,  8);
+        return _mm_slli_epi64(a, (num_bytes-8) * 8);
     }
 }
 
@@ -472,7 +472,7 @@ static inline __m128i multiply_by_5(__m128i block)
 // The POET-specific logic
 // ---------------------------------------------------------------------
 
-void keysetup(struct poet_ctx_t *ctx, const unsigned char key[KEYLEN])
+void keysetup(poet_ctx_t *ctx, const unsigned char key[KEYLEN])
 {
     AES_KEY expanded_key;
     __m128i sk = loadu(key);
@@ -498,7 +498,7 @@ void keysetup(struct poet_ctx_t *ctx, const unsigned char key[KEYLEN])
 
 // ---------------------------------------------------------------------
 
-void process_header(struct poet_ctx_t *ctx,
+void process_header(poet_ctx_t *ctx,
                     const unsigned char *header,
                     unsigned long long header_len)
 {
@@ -610,7 +610,7 @@ static inline __m128i encrypt_block(__m128i p, __m128i* x, __m128i* y,
 
 // ---------------------------------------------------------------------
 
-void encrypt_final(struct poet_ctx_t *ctx,
+void encrypt_final(poet_ctx_t *ctx,
                    const unsigned char *plaintext,
                    unsigned long long plen,
                    unsigned char *ciphertext,
@@ -651,7 +651,7 @@ void encrypt_final(struct poet_ctx_t *ctx,
         storeu(tag, p);
     } else { // Tag splitting
         p = zero_pad(load_partial(plaintext, plen), BLOCKLEN - plen);
-        p = vxor(s, vor(p, shift_right(ctx->tau, plen)));
+        p = vxor(s, vor(p, shift_left(ctx->tau, plen)));
         p = encrypt_block(p, &x, &y, ctx->aes_enc, ctx->aes_lt, ctx->aes_lb);
         p = vxor(s, p);
         
@@ -711,7 +711,7 @@ static inline __m128i encrypt_tag_block(__m128i p, __m128i* x, __m128i* y,
 
 // ---------------------------------------------------------------------
 
-int decrypt_final(struct poet_ctx_t *ctx,
+int decrypt_final(poet_ctx_t *ctx,
                   const unsigned char *ciphertext,
                   unsigned long long clen,
                   const unsigned char tag[BLOCKLEN],
@@ -756,7 +756,7 @@ int decrypt_final(struct poet_ctx_t *ctx,
     } else { // Tag splitting
         // Process final message block
         p = zero_pad(load_partial(ciphertext, clen), BLOCKLEN - clen);
-        p = vxor(s, vor(p, shift_right(t, clen)));
+        p = vxor(s, vor(p, shift_left(t, clen)));
         p = decrypt_block(p, &x, &y, ctx->aes_dec, ctx->aes_lt, ctx->aes_lb);
         p = vxor(p, s);
         store_partial_left(plaintext, p, clen);
@@ -764,7 +764,7 @@ int decrypt_final(struct poet_ctx_t *ctx,
         // c = C_L || T^{alpha}
         // p = M_L || tau^{alpha}
 
-        __m128i tmp = shift_left(p, clen);
+        __m128i tmp = shift_right(p, clen);
         __m128i tau_alpha = zero_pad(ctx->tau, clen);
 
         int alpha = _mm_testc_si128(tau_alpha, tmp);
@@ -775,7 +775,7 @@ int decrypt_final(struct poet_ctx_t *ctx,
 
         // t = T^{alpha} || T^{beta}
         // p = T^{beta}  || Z
-        __m128i t_beta = shift_left(t, 16 - clen);
+        __m128i t_beta = shift_right(t, 16 - clen);
         tmp = zero_pad(p, 16 - clen);
         int beta = _mm_testc_si128(t_beta, tmp);
 
