@@ -20,10 +20,14 @@ Content
 * C optimized implementation of POET-AES128 (v1) with AES-NI
 * C reference implementation of POET-AES4 (v1) with software AES
 * C optimized implementation of POET-AES4 (v1) with AES-NI
-* C reference implementation of POET-AES128 (v2) with software AES
-* C optimized implementation of POET-AES128 (v2) with AES-NI
-* C reference implementation of POET-AES4 (v2) with software AES
-* C optimized implementation of POET-AES4 (v2) with AES-NI
+* C reference implementation of POET-AES128 (v2) with software AES, 
+  with/without intermediate tags
+* C optimized implementation of POET-AES128 (v2) with AES-NI, 
+  with/without intermediate tags
+* C reference implementation of POET-AES4 (v2) with software AES, 
+  with/without intermediate tags
+* C optimized implementation of POET-AES4 (v2) with AES-NI, 
+  with/without intermediate tags
 
 Dependencies
 ------------
