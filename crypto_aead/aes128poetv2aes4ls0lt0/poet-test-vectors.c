@@ -90,9 +90,9 @@ static void print_context(const poet_ctx_t *ctx)
 
 static void print_context(const poet_ctx_t *ctx)
 {
-    print_hex("K:", (const unsigned char*)ctx->aes_enc.rd_key, BLOCKLEN);
+    print_hex("K:", (const unsigned char*)ctx->k, BLOCKLEN);
     print_hex("L:", ctx->l, BLOCKLEN);
-    print_hex("K_F:", (const unsigned char*)ctx->aes_axu.rd_key, BLOCKLEN);
+    print_hex("K_F:", (const unsigned char*)ctx->k_axu, BLOCKLEN);
     print_hex("Tau:", ctx->tau, TAGLEN);
 }
 
