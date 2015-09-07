@@ -67,8 +67,8 @@ static const uint32_t MESSAGE_LENGTHS[NUM_MESSAGE_LENGTHS] = {
 // ---------------------------------------------------------------------
 
 #ifdef BENCH_ENC_ONLY
-    #define ENCRYPT_FN(m, c, mlen, t, ctx) encrypt_final(ctx, m, mlen, c, t)
-    #define DECRYPT_FN(m, c, clen, t, ctx) decrypt_final(ctx, c, clen, t, m)
+    #define ENCRYPT_FN(m, c, mlen, clen, t, ctx) encrypt_final(ctx, m, mlen, c, &clen, t)
+    #define DECRYPT_FN(m, c, mlen, clen, t, ctx) decrypt_final(ctx, c, clen, t, m, &mlen)
 #else
     extern int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen,
                                    const unsigned char *m, unsigned long long mlen,
@@ -178,7 +178,7 @@ static int benchmark(const uint32_t num_iterations)
             clen = MESSAGE_LENGTHS[j] + CRYPTO_ABYTES;
 
             #ifdef BENCH_ENC_ONLY
-            TEST_FN(m, c, mlen, tag, &ctx);
+            TEST_FN(m, c, mlen, clen, tag, &ctx);
             #else
             TEST_FN(m, c, mlen, clen, npub, key);
             #endif
@@ -202,7 +202,7 @@ static int benchmark(const uint32_t num_iterations)
             t0 = get_time();
             
             #ifdef BENCH_ENC_ONLY
-            TEST_FN(m, c, mlen, tag, &ctx);
+            TEST_FN(m, c, mlen, clen, tag, &ctx);
             #else
             TEST_FN(m, c, mlen, clen, npub, key);
             #endif
@@ -235,7 +235,7 @@ static int benchmark(const uint32_t num_iterations)
                 t0 = get_time();
                 
                 #ifdef BENCH_ENC_ONLY
-                TEST_FN(m, c, mlen, tag, &ctx);
+                TEST_FN(m, c, mlen, clen, tag, &ctx);
                 #else
                 TEST_FN(m, c, mlen, clen, npub, key);
                 #endif
@@ -261,7 +261,7 @@ static int benchmark(const uint32_t num_iterations)
             t0 = get_time();
             
             #ifdef BENCH_ENC_ONLY
-            TEST_FN(m, c, mlen, tag, &ctx);
+            TEST_FN(m, c, mlen, clen, tag, &ctx);
             #else
             TEST_FN(m, c, mlen, clen, npub, key);
             #endif
