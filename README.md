@@ -21,13 +21,20 @@ Content
 * C reference implementation of POET-AES4 (v1) with software AES
 * C optimized implementation of POET-AES4 (v1) with AES-NI
 * C reference implementation of POET-AES128 (v2) with software AES, 
-  with/without intermediate tags
+  without intermediate tags (ls = 0, lt = 0)
 * C optimized implementation of POET-AES128 (v2) with AES-NI, 
-  with/without intermediate tags
+  without intermediate tags (ls = 0, lt = 0)
+* C reference implementation of POET-AES128 (v2) with software AES, 
+  with intermediate tags (ls = 128, lt = 128)
 * C reference implementation of POET-AES4 (v2) with software AES, 
-  with/without intermediate tags
+  without intermediate tags (ls = 0, lt = 0)
 * C optimized implementation of POET-AES4 (v2) with AES-NI, 
-  with/without intermediate tags
+  without intermediate tags (ls = 0, lt = 0)
+* C reference implementation of POET-AES4 (v2) with software AES, 
+  with intermediate tags (ls = 128, lt = 128)
+
+ls denotes the number of blocks between subsequent intermediate tags.
+lt the length in bits of intermediate tags.
 
 Dependencies
 ------------

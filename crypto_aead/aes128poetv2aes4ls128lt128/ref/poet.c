@@ -226,10 +226,10 @@ static const block REDUNDANCY_BLOCK = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 // ---------------------------------------------------------------------
 
-static inline uint64_t ceil(const uint64_t numerator, const uint64_t denominator)
+static inline uint64_t do_ceil(const uint64_t numerator, const uint64_t denominator)
 {
-    if (numerator == 0) {
-        return 0;
+    if (numerator == 0L || denominator == 0L) {
+        return 0L;
     }
 
     return 1 + ((numerator - 1) / denominator);
@@ -237,16 +237,16 @@ static inline uint64_t ceil(const uint64_t numerator, const uint64_t denominator
 
 // ---------------------------------------------------------------------
 
-unsigned long long get_num_blocks(const unsigned long long num_bytes)
+static unsigned long long get_num_blocks(const unsigned long long num_bytes)
 {
-    return ceil(num_bytes, BLOCKLEN);
+    return do_ceil(num_bytes, BLOCKLEN);
 }
 
 // ---------------------------------------------------------------------
 
 static uint64_t get_num_parts(const uint64_t num_blocks, 
                               const uint64_t num_blocks_per_part) {
-    return ceil(num_blocks, num_blocks_per_part);
+    return do_ceil(num_blocks, num_blocks_per_part);
 }
 
 // ---------------------------------------------------------------------
