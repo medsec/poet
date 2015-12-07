@@ -92,6 +92,7 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
         memcpy(header, ad, adlen);
         memcpy(header + adlen, npub, CRYPTO_NPUBBYTES);
         process_header(&ctx, header, adlen + CRYPTO_NPUBBYTES);
+        free(header);
     } else {
         process_header(&ctx, ad, adlen);
     }
