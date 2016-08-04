@@ -10,7 +10,7 @@ else
 	CFLAGS += -O3 -fomit-frame-pointer
 endif
 
-.PHONY: all clean 
+.PHONY: all clean poet-ref-test-vectors
 
 all: crypto_aead.h poet-ref-test-vectors
 

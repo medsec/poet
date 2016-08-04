@@ -22,7 +22,7 @@ ifdef FINE_GRAINED
 	BENCHMARK_FLAGS += -DBENCH_FINE_GRAINED
 endif
 
-.PHONY: all clean 
+.PHONY: all clean poet-ref-test-vectors poet-ni-test-vectors
 
 all: crypto_aead.h poet-ni-test-vectors poet-ni-benchmark poet-ref-test-vectors
 
