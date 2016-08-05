@@ -1,6 +1,6 @@
 /*
 // @author Eik List
-// @last-modified 2015-08-07
+// @last-modified 2015-08-03
 // This is free and unencumbered software released into the public domain.
 //
 // Anyone is free to copy, modify, publish, use, compile, sell, or

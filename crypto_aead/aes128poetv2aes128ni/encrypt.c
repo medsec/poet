@@ -1,6 +1,6 @@
 /*
 // @author Eik List
-// @last-modified 2016-08-04
+// @last-modified 2015-08-03
 // This is free and unencumbered software released into the public domain.
 //
 // Anyone is free to copy, modify, publish, use, compile, sell, or
@@ -46,11 +46,7 @@ int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen,
     poet_ctx_t ctx;
     (void)nsec;
     
-    if (clen) {
-        *clen = mlen + CRYPTO_ABYTES;
-    }
-    
-    keysetup(&ctx, k);
+    keysetup_encrypt_only(&ctx, k);
     
     if (npub) {
         unsigned char *header = malloc((size_t)(adlen + CRYPTO_NPUBBYTES));
@@ -63,7 +59,12 @@ int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen,
     }
     
     unsigned char *tag = c + mlen;
-    encrypt_final(&ctx, m, mlen, c, tag);
+    encrypt_final(&ctx, m, mlen, c, clen, tag);
+
+    if (clen) {
+        *clen = mlen + CRYPTO_ABYTES;
+    }
+
     return 0;
 }
 
@@ -83,10 +84,6 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
         return -1;
     }
 
-    if (mlen) {
-        *mlen = clen - CRYPTO_ABYTES;
-    }
-
     keysetup(&ctx, k);
     
     if (npub) {
@@ -101,5 +98,5 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
     
     unsigned char tag[CRYPTO_ABYTES];
     memcpy(tag, c + (clen - CRYPTO_ABYTES), CRYPTO_ABYTES);
-    return decrypt_final(&ctx, c, *mlen, tag, m);
+    return decrypt_final(&ctx, c, clen - CRYPTO_ABYTES, tag, m, mlen);
 }

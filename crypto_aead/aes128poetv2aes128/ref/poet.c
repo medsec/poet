@@ -39,8 +39,8 @@ static const unsigned char MSB_MASK = 0x01;
 
 // ---------------------------------------------------------------------
 
-#define TOP_HASH     aesfour_encrypt(ctx->x, ctx->x, &(ctx->aes_axu))
-#define BOTTOM_HASH  aesfour_encrypt(ctx->y, ctx->y, &(ctx->aes_axu))
+#define TOP_HASH     aes_encrypt(ctx->x, ctx->x, &(ctx->aes_axu))
+#define BOTTOM_HASH  aes_encrypt(ctx->y, ctx->y, &(ctx->aes_axu))
 
 // ---------------------------------------------------------------------
 
@@ -48,8 +48,9 @@ static const unsigned char MSB_MASK = 0x01;
 static void print_block(const char *label, const uint8_t *c)
 {
     printf("%s: \n", label);
-    
-    for (size_t i = 0; i < BLOCKLEN; i++) {
+    int i;
+
+    for (i = 0; i < BLOCKLEN; i++) {
         printf("%02x ", c[i]);
     }
 
@@ -64,8 +65,9 @@ static int compare_blocks(const unsigned char* a,
                           const size_t num_bytes)
 {
     unsigned char result = 0;
+    size_t i;
     
-    for (size_t i = 0; i < num_bytes; i++) {
+    for (i = 0; i < num_bytes; i++) {
         result |= a[i] ^ b[i];
     }
     
@@ -76,7 +78,8 @@ static int compare_blocks(const unsigned char* a,
 
 static inline void xor_block(block c, const block a, const block b)
 {
-    for (size_t i = 0; i < BLOCKLEN; i++) {
+    size_t i;
+    for (i = 0; i < BLOCKLEN; i++) {
         c[i] = a[i] ^ b[i];
     }
 }
@@ -85,10 +88,12 @@ static inline void xor_block(block c, const block a, const block b)
 
 static inline void to_array(unsigned char* dst, 
                             const uint64_t* src, 
-                            const unsigned n)
+                            const size_t n)
 {
-    for (size_t i = 0; i < n; i++) {
-        for (size_t j = 0; j < 8; ++j) {
+    size_t i;
+    size_t j;
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < 8; ++j) {
             dst[i*8+j] = (unsigned char)((src[i] >> (8*j)) & 0xFF);
         }
     }
@@ -106,7 +111,8 @@ static void encode_length(block s, const uint64_t len)
 
 static void shift_right(block h)
 {
-    for (size_t i = BLOCKLEN-1; i > 0; --i) {
+    size_t i;
+    for (i = BLOCKLEN-1; i > 0; --i) {
         h[i] = (h[i] >> 1) | (h[i-1] << 7);
     }
 
@@ -162,9 +168,10 @@ static void encode_parameters(block s,
                               const unsigned long long num_blocks_per_part, 
                               const unsigned long long intermediate_taglen) 
 {
+    size_t j;
     memset(s, 0x00, BLOCKLEN);
     
-    for (size_t j = 0; j < 8; ++j) {
+    for (j = 0; j < 8; ++j) {
         s[j] = (unsigned char)((num_blocks_per_part >> (8*j)) & 0xFF);
         s[8+j] = (unsigned char)((intermediate_taglen >> (8*j)) & 0xFF);
     }
@@ -211,7 +218,7 @@ void process_header(poet_ctx_t *ctx,
     in[header_len] = 0x80;
     xor_block(in, mask, in);
     aes_encrypt(in, out, &(ctx->aes_enc));
-    
+
     xor_block(ctx->tau, out, ctx->tau);
     aes_encrypt(ctx->tau, ctx->tau, &(ctx->aes_enc));
 
@@ -327,7 +334,7 @@ int decrypt_final(poet_ctx_t *ctx,
                   const unsigned char *ciphertext,
                   unsigned long long clen,
                   const unsigned char tag[TAGLEN],
-                  unsigned char *plaintext, 
+                  unsigned char *plaintext,
                   unsigned long long* plen)
 {
     uint64_t offset = 0;
@@ -359,7 +366,7 @@ int decrypt_final(poet_ctx_t *ctx,
     // Process last block and generate the tag
     BOTTOM_HASH;
     xor_block(tmp, s, tmp);
-
+    
     xor_block(ctx->y, tmp, ctx->y);
     aes_decrypt(ctx->y, tmp, &(ctx->aes_dec));
 
